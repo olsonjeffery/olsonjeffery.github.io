@@ -1,3 +1,9 @@
+# Jeff Olson's github.io pages src repo
+
+Has the src of my octopress site.
+
+Uses a modified version of the [oscailte](https://github.com/coogie/oscailte/) theme.
+
 ## What is Octopress?
 
 Octopress is [Jekyll](https://github.com/mojombo/jekyll) blogging at its finest.
