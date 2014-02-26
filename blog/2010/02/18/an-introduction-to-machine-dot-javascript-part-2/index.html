@@ -1,0 +1,397 @@
+
+
+<!doctype html>
+  <!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+  <!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+  <!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+  <!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>An Introduction to machine.javascript part 2 - programmer, etc</title>
+    <meta name="author" content="Jeff Olson">
+    
+    <meta name="description" content="An Introduction to machine.javascript part 2 Feb 18th, 2010 javascript web This post is a continuation from Part 1, which introduced the ideas of &hellip;">
+    
+    <meta name="viewport" content="width=device-width">
+    
+    <link rel="canonical" href="http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2">
+    <link href="/favicon.png" rel="icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet">
+    <link href="//atom.xml" rel="alternate" title="programmer, etc" type="application/atom+xml">
+  </head>
+
+
+  <body >
+
+    <header>
+      <div class="grid-wrapper">
+  <div class="grid">
+
+    <div class="grid__item two-fifths lap-four-sixths palm-one-whole">
+  <a href="/" class="site-title">programmer, etc</a>
+</div>
+
+<div class="grid__item three-fifths lap-two-sixths palm-one-whole">
+  <nav>
+    <input type="checkbox" id="toggle">
+<label for="toggle" class="toggle" data-open="Main Menu" data-close="Close Menu"></label>
+<ul class="menu pull-right">
+  <li><a href="/">Home</a></li>
+  <li><a href="/blog/">Blog</a></li>
+</ul>
+  </nav>
+</div>
+
+
+  </div>
+</div>
+    </header>
+
+    
+
+    <div class="grid-wrapper">
+      <div class="grid grid-center">
+        
+        <div class="grid__item two-thirds lap-one-whole palm-one-whole">
+        
+
+          <article class="post">
+  <header>
+  
+  <h1 class="title indent">An Introduction to machine.javascript part 2</h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2010-02-18T12:28:51-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Feb 18<span>th</span>, 2010</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/javascript/">javascript</a></li>
+    
+      <li><a href="/blog/categories/web/">web</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This post is a continuation from <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, which introduced the ideas of <code>machine-javascript</code>, namely the script loader and a simple example, showing how a <code>HelloWorldController</code> was instantiated and attached to the page. What was not explored, however, was what the <code>HelloWorldController</code> actually looks like and how it works. That is the topic of this post.</p>
+
+<h3>Let&rsquo;s Dive Right In!</h3>
+
+<p>Here is the content of <code>HelloWorldController.js</code>, loaded into our page in the example shown in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of the series:</p>
+
+<pre><code>    include('jquery.js');
+    include('machine-controller.js');
+    include(function() {
+      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+
+      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+
+      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+
+      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+    });
+</code></pre>
+
+<p>Okay! A lot to take in there. Let&rsquo;s start with the <code>include()</code>s at the top of the file.</p>
+
+<pre><code>    include('machine-controller.js');
+    include(function() {
+      ...
+    });
+</code></pre>
+
+<p>As noted in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, calls to <code>include()</code> are never nested within the scope of a single file, but always occur serially. The first call is to load up <code>machine-controller.js</code>, upon which this file is dependant. If <code>HelloWorldController</code> were dependant upon a &ldquo;ViewRenderer&rdquo; (which is discussed further down), it would also be included at this point. Finally, the actual body of the script is contained within an <code>include()</code>. This is a convention that must be adherred to in order to leverage the utility of <code>machine-includer.js</code>. Strictly speaking, <code>machine-controller.js</code> takes no dependency upon <code>machine-includer.js</code> and you could easily use it with another script loader or no loader at all, but for the purposes of this example we are going to use it.</p>
+
+<pre><code>      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+</code></pre>
+
+<p>At this point, we&rsquo;re just setting up some variables that will be used in the course of defining <code>HelloWorldController</code>. I, by habit, typically assign the top-level <code>this</code> in a given script to <code>global</code>. The next two variables, <code>viewLeft</code> and <code>viewRight</code> are two chunks of text that will make up the &ldquo;view&rdquo; rendered by <code>HelloWorldController</code> (that is, the markup that it attaches to the DOM). This approach is not-at-all optimal for general use, but is merely meant to demonstrate the basic functionality of <code>setView()</code>, which will be covered in-depth below.</p>
+
+<pre><code>      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+</code></pre>
+
+<p>This chunk of JavaScript is the declaration of <code>HelloWorldController</code>&rsquo;s constructor/intializer and is where the majority of <code>Machine.Controller</code>-derived controller objects are configured. There&rsquo;s a lot of important stuff here, so let&rsquo;s go line by line.</p>
+
+<pre><code>      this.init(); // kicks off Machine.Controller's internal setup
+                   // .. always call this first.
+</code></pre>
+
+<p>The <code>init()</code> function in a <code>Machine.Controller</code>-derived object is where internal initialization is housed. It should be the first thing you call in any controller you define. Obviously, overloading/replacing this would be a Bad Thing unless you really know what you&rsquo;re doing. Thankfully, at least, much like Controller development on the server, you&rsquo;re not terribly likely to have deeply nested inheritance hierarchies of Controller classes. But if you do need to do so, you can always take measures to Make It Work.</p>
+
+<pre><code>  this.clickCount = 0;
+</code></pre>
+
+<p><code>this.clickCount</code> is a stateful counter that we&rsquo;re going to use to track clicks to the DOM that this controller &ldquo;owns&rdquo;. This is an example of how client-side controllers are stateful (one thing that can be thought of differently from server-side controllers in many instances).</p>
+
+<p>Another thing to note: it can generally be assumed that any call to <code>this</code> in the top-level scope of a function attached to the prototype for a <code>Machine.Controller</code>-derived object will reference the object itself. This is normal behavior typically but, interestingly, this also applies to functions bound to events using the <code>addAction()</code> function, which is shown below. Typically, at least with jQuery event binding, <code>this</code> is bound to some kind of context information for the event in question. Of course, callbacks passed into jQuery functions like <code>$.each()</code> and <code>$.get()</code> will still have their <code>this</code> variable re-bound, as is expected.</p>
+
+<pre><code>  this.setView(viewLeft + this.clickCount + viewRight);
+</code></pre>
+
+<p>This is the <code>setView()</code> function, mentioned above. It is used to tell a controller what mechanism it will use to get some markup that will represent its presence in the DOM. There are two valid signatures for this function:</p>
+
+<pre><code>      this.setView(aString);
+      this.setView(aString, anotherString);
+</code></pre>
+
+<p>The first signature just takes a single string and is the format used in <code>HelloWorldController</code>. This treats the passed-in string as static markup text and will move to immediately convert it to a DOM and then attach it to the page&rsquo;s DOM when needed. This is the simplest possible use case for <code>setView()</code> and isn&rsquo;t often practical, but can be useful.</p>
+
+<p>The second signature takes two strings: The first is an argument to pass in to a ViewRenderer. The second argument is the &ldquo;key&rdquo; for that ViewRenderer. In this case, the &ldquo;key&rdquo; refers to a string that the renderer uses to globally identify itself when it is registered with <code>Machine.Controllers</code> mechanism for tracking ViewRenderers. The details of how this works won&rsquo;t be covered in this post, but just know that it is there.</p>
+
+<p>If you&rsquo;d like to see an example of this use of <code>setView()</code> and ViewRenderers right now, then look at the <code>/example/example.html</code> file in the <a href="http://github.com/machine/machine.javascript">machine-javascript</a> github repo and check out the &lsquo;ViewRenderers and Views&rsquo; example.</p>
+
+<p>Back to the larger issue of the signifigance of <code>setView()</code>, after calling <code>setView()</code> you should know that any calls to the controller&rsquo;s <code>render()</code> function will cause whatever &ldquo;instructions&rdquo; were passed in to <code>setView()</code> to be reevaluated and the results placed in the <code>domRoot</code> property of the object. You can also arbitrarily call <code>setView()</code> at your pleasure to change the &ldquo;rendering strategy&rdquo; for a given controller (but will of course want to call <code>render()</code> after that so the changes can be reflected in the <code>domRoot</code>).</p>
+
+<p>The last line in our controller&rsquo;s initializer function is:</p>
+
+<pre><code>  this.addAction('click', '#clicker', this.onClickerDivClick);
+</code></pre>
+
+<p>This is the previously mentioned <code>addAction()</code> function. It is a wrapper around jQuery&rsquo;s event binding mechanism that provides a few advantages:</p>
+
+<ul>
+<li>Events bound in this fashion don&rsquo;t need to be manually rebound when the controller&rsquo;s DOM changes (this uses a combination of jQuery Live Events and manual re-binding on DOM change).</li>
+<li>As mentioned above, callbacks passed in to <code>addAction()</code> keep their <code>this</code> property bound to the controller object, instead of the context for the event that called it.</li>
+<li>It provides a straightforward interface to pool your event bindings in a single location.</li>
+</ul>
+
+
+<p>The syntax is straightforward: The first argument is the name of the event that should be listened for. This uses the jQuery convention for event names (<code>onClick</code> becomes <code>click</code>, <code>onBlur</code> becomes <code>blur</code>, etc). The second argument is the CSS selector for the element(s) you want a callback bound to. And the third argument is the function callback you want to pass in. For the sake of keeping things clean, I specify my event handlers on the prototype of the controller itself and pass those in. There&rsquo;s nothing that says you can&rsquo;t specify the function inline, if you so desire. Do note, though, that <code>this</code> will be bound to the enclosing controller regardless.</p>
+
+<p>One last interesting (and important) detail: event callbacks bound using <code>addAction()</code> will only be triggered when the event occurs on elements <em>in the subset of the DOM owned by the controller</em>.</p>
+
+<p>So if, for example, you have several controllers in a given page that each expose elements that all have the <code>foo</code> class, then a call to <code>addAction('click', 'a.foo', this.someCallback);</code> will only trigger the <code>this.someCallback</code> function for clicks on those links in the view generated by the controller. Nifty, eh?</p>
+
+<p>Looking at the next chunk of JavaScript in our <code>HelloWorldController</code> example, we have:</p>
+
+<pre><code>      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+</code></pre>
+
+<p>Here, we see that <code>Machine.Controller</code> uses the usual prototypical inheritance found in JavaScript. It was originally based on John Resig&rsquo;s &ldquo;Simple JavaScript Inheritance&rdquo; model but was subsequently converted to use the more common prototype model. After that, you can see that we assign <code>HelloWorldController</code>&rsquo;s prototype to a simple, local variable called <code>hw</code> for convenience. This is to merely save keystrokes. It isn&rsquo;t such a big time-saver for simple controllers like this one but, if your controller had more functions attached to its prototype, this sort of thing becomes more valuable.</p>
+
+<p>Secondarily, it&rsquo;s also useful to declare the &ldquo;public&rdquo; functions and properties for a Controller, while allowing you to create functions that aren&rsquo;t attached to it and keep those as &ldquo;private&rdquo;, if that&rsquo;s your thing.</p>
+
+<p>And finally, we have:</p>
+
+<pre><code>      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+</code></pre>
+
+<p>This is the callback that was passed-in to <code>addAction()</code> in our constructor function. It is a typical event-handler callback, with the event information as the sole argument to the function. This may or may not be useful to you and you can omit it if you want to. As is indicated in the comment, <code>this</code> is bound to the enclosing controller. This means that we have access to any stateful information contained therein (<code>clickCount</code>, in this case).</p>
+
+<p>The callback increments the <code>clickCount</code> property by one and then calls <code>setView()</code> with the same <code>viewLeft</code> and <code>viewRight</code> variables used in the constructor, but with the newly incremented <code>clickCount</code>. If we were using a more sophisticated rendering scheme, we would merely modify the controller&rsquo;s <code>model</code> property and let that &ldquo;trickle down&rdquo; to the ViewRenderer. In this case, the call to <code>setView()</code> would go away and the subsequent call to <code>render()</code> will be all that would be needed to update the DOM. But, since we&rsquo;re using the simplest possible approach to specifying a view in this example, we have to update the view&rsquo;s markup ourselves via <code>setView()</code>.</p>
+
+<h3>Conclusion</h3>
+
+<p>In this post, we covered:</p>
+
+<p>&ndash; The contents of the <code>HelloWorldController.js</code> file that is first mentioned in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of this series. A typical <code>Machine.Controller</code>-derived object contains:
+&ndash; A constructor function, with the first statement in it being a call to <code>init()</code>. This does the internal setup for <code>Machine.Controller</code> and should always be called first. Also don&rsquo;t replace it in the prototype unless you know what you&rsquo;re doing.
+&ndash; In additional to any per-controller setup, a constructor will usually contain:
+&ndash; A call to <code>setView()</code> to designate the view rendering scheme for this controller. You can either pass in static text (which you need to update yourself via calls to <code>setView()</code>) or designate a pre-registered ViewRenderer to handle the details for you. The details of how ViewRenderers work is for another post.
+&ndash; One-or-more calls to <code>addAction()</code> to bind event callbacks to elements in the subset of the DOM owned by the controller.
+&ndash; Each call t <code>addAction()</code> is going to need a corresponding callback. <code>this</code> in the callback will correspond to the enclosing controller, giving you access to state information.
+&ndash; Call <code>render()</code> when you want to update the markup in the <code>domRoot</code>.</p>
+
+<p>Stayed tuned for Part 3, where I&rsquo;ll go over one of the most useful architectural features of <code>machine-controller.js</code>: ViewRenderers. Until then, take it easy!&#8217;</p>
+
+
+</article>
+
+
+        
+        </div>
+        
+        
+        <aside id="sidebar" class="grid__item one-third lap-one-whole palm-one-whole">
+          <div class="grid">
+
+  
+<section class="social aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">
+    Follow me!
+  </h1>
+  <ul class="unstyled">
+    
+    
+    <li><a class="github" target="_blank" href="//github.com/olsonjeffery"><i class="icon-github"></i> Github</a></li>
+    
+    
+    
+    
+    
+    <li><a class="twitter" target="_blank" href="//twitter.com/olsonjeffery"><i class="icon-twitter"></i> Twitter</a></li>
+    
+  </ul>
+</section>
+
+
+
+  <section id="recent-posts" class="aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">Recent Posts</h1>
+  <ul class="divided">
+    
+      <li class="post">
+        <a href="/blog/2011/02/01/deployment-with-openwrap/">Deployment with OpenWrap</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/">An Introduction to machine.javascript part 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/17/an-introduction-to-machine-dot-javascript/">An Introduction to machine.javascript</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/01/15/i-am-alt-dot-net-pursefight/">I am Alt.Net Pursefight</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2009/11/06/saber-a-newspeak-web-framework/">Saber: A Newspeak web framework</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section id="github-repos" class="aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">
+    GitHub Repos
+    
+    <small class="pull-right">
+      <a class="btn" href="//github.com/olsonjeffery" title="@olsonjeffery on GitHub" target="_blank">
+        <i class="icon-external-link"></i>
+      </a>
+    </small>
+    
+  </h1>
+  <ul id="gh_repos" class="divided">
+    <li class="loading">
+      <i class="icon-spinner icon-spin"></i>
+    </li>
+  </ul>
+</section>
+
+
+
+
+</div>
+
+        </aside>
+        
+      </div>
+    </div>
+    
+    <footer>
+      <div class="grid-wrapper">
+  <div class="grid">
+    <div class="grid__item">
+      <p class="copyright">
+  All content by Jeff Olson and licenced under <a href="//creativecommons.org/licenses/by-nc-sa/3.0/ie/">Creative Commons</a>.<br>
+  Code under <a href="//github.com/coogie/oscailte/blob/master/README.md">MIT Licence</a>.
+</p>
+    </div>
+  </div>
+</div>
+
+    </footer>
+
+    <!--[if lt IE 7]>
+      <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+    <![endif]-->
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+<script defer src="/javascripts/octopress.js"></script>
+
+
+
+
+
+
+
+<script>
+  $(document).ready(function(){
+    if (!window.jXHR){
+      var jxhr = document.createElement('script');
+      jxhr.type = 'text/javascript';
+      jxhr.src = '/javascripts/libs/jXHR.js';
+      var s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(jxhr, s);
+    }
+
+    github.showRepos({
+      user: 'olsonjeffery',
+      count: 5,
+      skip_forks: true,
+      target: '#gh_repos'
+    });
+  });
+</script>
+<script src="/javascripts/github.js"></script>
+
+
+
+
+
+
+  </body>
+</html>

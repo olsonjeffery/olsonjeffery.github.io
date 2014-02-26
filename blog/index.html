@@ -8,17 +8,17 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <title>My Octopress Blog</title>
-    <meta name="author" content="Your Name">
+    <title>programmer, etc</title>
+    <meta name="author" content="Jeff Olson">
     
-    <meta name="description" content=" ">
+    <meta name="description" content="Deployment with OpenWrap Feb 1st, 2011 deployment .NET tooling This post is a brief, hand-wavey outline of my efforts to integrate and abuse &hellip;">
     
     <meta name="viewport" content="width=device-width">
     
     <link rel="canonical" href="http://olsonjeffery.github.io/blog">
     <link href="/favicon.png" rel="icon">
     <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet">
-    <link href="//atom.xml" rel="alternate" title="My Octopress Blog" type="application/atom+xml">
+    <link href="//atom.xml" rel="alternate" title="programmer, etc" type="application/atom+xml">
   </head>
 
 
@@ -29,7 +29,7 @@
   <div class="grid">
 
     <div class="grid__item two-fifths lap-four-sixths palm-one-whole">
-  <a href="/" class="site-title">My Octopress Blog</a>
+  <a href="/" class="site-title">programmer, etc</a>
 </div>
 
 <div class="grid__item three-fifths lap-two-sixths palm-one-whole">
@@ -42,6 +42,7 @@
 </ul>
   </nav>
 </div>
+
 
   </div>
 </div>
@@ -58,6 +59,1329 @@
           
 
 
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2011/02/01/deployment-with-openwrap/">Deployment with OpenWrap</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2011-02-01T12:46:09-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Feb 1<span>st</span>, 2011</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/deployment/">deployment</a></li>
+    
+      <li><a href="/blog/categories/.NET/">.NET</a></li>
+    
+      <li><a href="/blog/categories/tooling/">tooling</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This post is a brief, hand-wavey outline of my efforts to integrate and abuse OpenWrap for the purposes of deployment automation in my shop. I began working on this post before starting the actual process of integrating OpenWrap and have updated as I&rsquo;ve progressed. The goal should be that, when complete, it will provide an introductory outline of what a newcomer to OpenWrap (as I consider myself, prior to this post) will want to know/learn in order to competantly grapple with the topics contained herein.</p>
+
+<p>I will begin by discussing some assumptions about the environment for this exercise (as they pertain to my particular situation), then talk about where my shop was before integrating with OpenWrap and what our current deployment process consists of. Next, I will outline where I <em>want</em> to be once fully integrated with OpenWrap. Finally (the important stuff), I will provide purposefully vague play-by-play of the conversion process (as, neccesarily, each shop&rsquo;s needs and constraints will differ.. so excessive preciseness in the blog post will only serve to, ultimately, mislead you, the gentle reader) starting from a &ldquo;vanilla non-OpenWrap&rsquo;d&rdquo; ASP.NET MVC 2.0 webapp.</p>
+
+<p>It&rsquo;s key to point out that, as far as I can surmise, using OpenWrap for:</p>
+
+<ol>
+<li>Deployment automation</li>
+<li>Packaging ASP.NET MVC projects</li>
+</ol>
+
+
+<p>.. is a massive abuse of it&rsquo;s intended purpose. I make no warranties as to the fitness of the process outlined herein and fully expect to inspire the Wrath of Seb as a result (have you ever seen how he browbeats the NuGet people?).</p>
+
+<h3>Some Assumptions</h3>
+
+<p>This post assumes that you&rsquo;re working in a MS.NET environment deployed to some variant (most likely Server) of the Windows OS ecosystem. We&rsquo;re still on Server 2003 (with a migration to 2008R2 in the next 12 months). It&rsquo;s not-at-all clear to me what the Mono/Linux story is for OpenWrap, so I make no warranty that this process can be adapted for such an environment. My shop is still .NET 2.0/3.5SP1-based, so that is the point from which I&rsquo;m starting in this post (.NET 4.0 is also on the 12 months plan, heh). Also, my actual production servers exist on a DMZ that is not domain joined and requires copious amounts of red-tape to be waded-through in order to open ports back into some of office backoffice machines in non-DMZ&rsquo;d parts of our corporate intranet.</p>
+
+<h3>Our Pre-OpenWrap Deployment Process</h3>
+
+<p>Our current setup, roughly, looks like this:</p>
+
+<ol>
+<li>Devs work and check-in to our mercurial repo, as needed</li>
+<li>For every checkin, a jenkins build runs. The complete webapp project directory (bins, src, views, etc), post-build, is published as an artifact</li>
+<li>Once we&rsquo;re ready to deploy to prod, we have a special, manually triggered, jenkins build that will take the artifacts of the most recent, successful, build and do some config replacement for the prod environment (it&rsquo;s configured for dev/test by default) and package the result into a zip. The resulting zip file can be decompressed on the root of the drive on our application servers (so it unpacks into Inetpub/wwwroot by default). This zip file is published as the artifact of the build</li>
+<li>Whoever is doing the deployment (we&rsquo;ll call them &ldquo;Ops&rdquo;) will go to the jenkins page and download the zip artifact from the last step to their local machine</li>
+<li>Ops will then log into the application servers via RDP and copy the zip file onto the machine via the &ldquo;Local Resources&rdquo; exposure of their local hard drive</li>
+</ol>
+
+
+<p>We&rsquo;ve found that step 4 is the killer, as it appears to take ~15 minutes of manual time to copy the resource across the intranet. As noted above in the &ldquo;Some Assumptions&rdquo; section, the app servers are on a DMZ and all ports back into the intranet are closed by default (including network file shares) and the servers are <em>not</em> domain-joined. My suspicion is that this method of copying large files (the prod deployment zip is ~35MB, currently) across the Local Resources pipe (or, perhaps more aptly, straw) is sub-optimal. I&rsquo;d like to test how long it&rsquo;ll take when done via HTTP or other methods. I get a feeling that SMB fileshares will be a non-starter, here, as it appears to require the opening of 4-or-more ports and not to mention the whole Active Directory component that isn&rsquo;t present on servers in the DMZ. I&rsquo;d love to check out rsync, but I get the impression that it&rsquo;s support is kind of flakey on Windows. So I&rsquo;m interested in seeing what an HTTP transfer of an equivelant size, from the intranet, will look like time-wise.</p>
+
+<p>But another component of what&rsquo;s so horrible about Step 4 is not just the time, but the &ldquo;disconnect&rdquo; that it creates in what is otherwise a mostly fluid process. That is 15 minutes that an Ops person has to sit there and twiddle their thumbs waiting for the process to complete. It&rsquo;s easy to get distracted and not check back until well after the copy has completed. I would like to get to an end-to-end automated process so that, regardless of how long it takes, we can click a button and know that the deployment will be finished, eventually, without dependence upon human intervention. An email notification of completion would be nice as well, but not neccesary.</p>
+
+<h3>Where we want to be</h3>
+
+<ol>
+<li>Still have the jenkins build(s) as detailed above</li>
+<li>Chances are the manually-triggered &ldquo;prod config/zip&rdquo; jenkins build (detailed above in step 3) will be modified to also include publishing the resultant artifact to an intranet-based OpenWrap repository server. OpenWrap seems to support network fileshare-based repositories out-of-the-box, but I think this&rsquo;ll be a non-starter for my shop based on the constraints of the DMZ outlined above. So I want a web-server based repository. The solution is quite simple (basically, we do both), and is detailed below (duh)</li>
+<li>Open ip/ports from my production servers to the internal OpenWrap repository</li>
+<li>From here, two options:</li>
+<li>Setup scheduled tasks on the production servers that periodically checks our internal repo for a new package and updates, accordingly. A polling based approach.</li>
+<li>Add support in the app, itself, to allow it to spin off a new process to check for updates via <code>o.exe</code> and update itself, as needed. We have a place in our app where this could live, already.</li>
+<li>Finally, some kind of completion notification once the new site wrap has been installed.</li>
+</ol>
+
+
+<p>Really the goal is to drastically reduce the amount of needed human intervention, in order to successfully deploy, to a couple of mouse clicks. Reducing the speed of the deployment would be nice, but is not essential (especially if we do discover that we are severely hamstrung by a bottleneck in throughput across the intranet between the DMZ and backoffice machines where the OpenWrap will live).</p>
+
+<h3>Step 1: Make The Web Application A Wrap</h3>
+
+<p>So, first things first, we have to set up an OpenWrap &ldquo;skeleton&rdquo; package into which we&rsquo;ll place the source of the application that we&rsquo;re trying to make into a deployable artifact (in OpenWrap parlance, this is called a &ldquo;wrap&rdquo;, although we&rsquo;re misappropriate the framework a bit in order to have it do our evil bidding). In all places below, I use <code>projectname</code> as a standin for whatever you wanted to name your wrap, so please substitute appropriately.</p>
+
+<p>I created a new &ldquo;wraps&rdquo; directory, inside of which I intend to place any packages I create. I think initialized my new project in there.</p>
+
+<pre><code>mkdir wraps
+o init-wrap projectname
+</code></pre>
+
+<p>Since my environment is Windows Server 2003 based (and I&rsquo;ve had problems dealing with the symbolic links/junctions that OpenWrap uses by default), I make sure to disable symbolic links as detailed <a href="https://github.com/openrasta/openwrap/wiki/Package-descriptor">here</a>. Open up the <code>projectname.wrapdesc</code> in your newly created package directory and add:</p>
+
+<pre><code>use-symlinks: false
+</code></pre>
+
+<p>to the config.</p>
+
+<p>After this, go ahead and copy in (or create) the project that you want to encapsulate in the wrap to the <code>src/</code> directory in your package skeleton. After that, enter:</p>
+
+<pre><code>o init-wrap -all
+</code></pre>
+
+<p>from the CLI to have OpenWrap hook into your project file (it does this by changing the default compiler target in your .csproj). All of the intracacies of this process are beyond the scope of this blog post, so a good place to start, if you want to learn more, is <a href="https://github.com/openrasta/openwrap/wiki">here</a>.</p>
+
+<p>After this, you should now have your project set up as a wrap (in the default configuration). You should be able to do:</p>
+
+<pre><code>o build-wrap -quiet
+</code></pre>
+
+<p>from the CLI and get a .wrap file as output. This is actually just a zip, which you can rename/decompress to check out the contents of in order to get some understanding of how it packages your build artifacts by default.</p>
+
+<p>For me, though, this wasn&rsquo;t the end of the story&hellip;</p>
+
+<h3>Step 1.5: Shoehorning an ASP.NET MVC Webapp Structure Into OpenWrap</h3>
+
+<p>By default, it appears that OpenWrap is setup to work with projects that aren&rsquo;t particularly finnicky about where the bins and resources are placed (or, perhaps more appropriately, are structured to lump everything together in a single build directory). Things like Class Library projects and CLI apps come to mind, here. This works pretty well for Class Libraries (and perhaps even typical CLI projects), but it doesn&rsquo;t work (for me), out of the box, for ASP.NET apps (sadly). Of course, it should be noted that I&rsquo;m not saying that OpenWrap is fundamentally incapable of dealing with these projects, but it seems that it doesn&rsquo;t package them correctly out of the box (whether the remedy is education on how to properly configure OpenWrap or a feature implementation is beyond me at this time).</p>
+
+<p>My solution, in this case, is to just hand-roll my own <code>.wrap</code> that abides the constraints required to have a running ASP.NET MVC site (all binaries in <code>/bin</code> under the root, expose <code>Views</code>, <code>Content</code>, <code>Scripts</code>, have a <code>Default.aspx</code> and <code>Global.asax</code> in the root, etc). For now, this is easier than bruising my brain trying to figure out how to make OpenWrap do this via configuration.</p>
+
+<p>I&rsquo;m not sure how much of the issue is solvable by configuration in the .csproj and how much is a current limitation of OpenWrap, but suffice to say that this is something I wanted to talk about so that it can either 1) be brought up as a possible feature/fix and use case for OpenWrap or 2) be solved by way of education. I&rsquo;m also painfully aware of the fact that I&rsquo;m taking OpenWrap way outside of it&rsquo;s intended comfort zone as part of what I&rsquo;m doing in this blog post.</p>
+
+<p>Obviously, this situation is a <em>big</em> your-mileage-may-vary kind of thing, but to give you an idea of what I did to make an ASP.NET MVC package nicely into a wrap:</p>
+
+<pre><code>    # this was derived from:
+    # http://snippets.dzone.com/posts/show/6409
+    def get_newest_wrap(dir)
+        matching = /.*wrap$/
+        files = Dir.entries(dir).collect { |file| file }.sort { |file1,file2| File.mtime(file1) &lt;=&gt; File.mtime(file2) }
+        files.reject! { |file| ((File.file?(file) and file =~ matching) ? false : true) }
+        files.last
+    end
+
+    def get_version_from(path)
+      f = File.open path
+      lines = f.readlines
+      f.close
+      lines.last.sub(/\.\*/,'')
+    end
+
+    @siteDir = 'bin-net35'
+    @toolsDir = '' # where I have some bin tools I use during builds
+    @targetProjectName = 'My.Asp.Net.Project'
+    desc "hand-roll a wrap for an ASP.NET MVC site"
+    task :drybuildwrap do
+      mkpath 'working'  
+      version = get_version_from ".\\version"
+      ts = Time.now.to_i.to_s # being lazy and using a unix timestamp
+                              # as the build number. it works, i guess.
+      pkg = "myaspnetproject"
+      wrapFile = "#{pkg}-#{version}.#{ts}.wrap"
+      Dir.chdir 'working'
+      mkpath @siteDir
+
+      # files needed in the root of the app, besides bin
+      rootFiles = ['Default.aspx', 'Global.asax', 'robots.txt', 'Web.config', 'Content', 'Scripts', 'Views']
+      rootFiles.each do |f|
+        cp_r "..\\src\\#{@targetProjectName}\\#{f}", @siteDir
+      end
+      # /bin
+      cp_r "..\\src\\#{@targetProjectName}\\bin", @siteDir
+
+      # needed OpenWrap files
+      cp_r "..\\version", "."
+      cp_r "..\\#{pkg}.wrapdesc", "."
+      mv @siteDir, 'bin-net35'
+
+      # tools dir -- some stuff needed to bootstrap the self-updating
+      # functionality .. covered in Step 4.5 below
+      mkdir "tools"
+      cp_r "..\\..\\..\\Tools\\7z\\7z.dll", "tools"
+      cp_r "..\\..\\..\\Tools\\7z\\7z.exe", "tools"
+      cp_r "..\\rakefile.rb", "tools"
+
+      # Finally, let's create our wrap
+      sh "..\\..\\..\\Tools\\7z\\7z.exe a -tzip -r ..\\#{wrapFile} *"
+      Dir.chdir '..'
+      rmtree 'working'
+    end
+</code></pre>
+
+<p>Pretty wild, I know.</p>
+
+<h3>Step 2: Setup An OpenWrap Repository To Publish To</h3>
+
+<p>This was a real head-scratcher for me, at first, so I asked about it on the OpenWrap mailing list. I was looking for a full HTTP implementation of an OpenWrap server and, seeing only a stub on github, I went to harass Seb for the full source. The thread is <a href="http://groups.google.com/group/openwrap-devel/browse_thread/thread/ad4f5329f9411e81">here</a>. His solution was pretty elegant. From the thread (where he&rsquo;s speaking about what he does for the main OpenWraps repo):</p>
+
+<blockquote><p>As for wraps.openwrap.org, I use something much simpler. I use a file share repository to write packages from teamcity, and on the read side i simply share the same folder as an http folder, that works out of the box as is, so if you&rsquo;re just looking at exposing the read side, you can do that now already.</p></blockquote>
+
+<p>So, it&rsquo;s pretty simple. With this in mind, I set up two servers:</p>
+
+<ol>
+<li><code>file://buildserver/openwraps/myaspnetsite</code> &mdash; A fileshare based repository server that the build server can publish to after a successful build</li>
+<li><code>http://buildserver</code> &mdash; A read-only repository that is exposed via IIS 6 directory listing magic (And do remember to add the <code>.wraplist</code> and <code>.wrap</code> to your MIME-types if using IIS 6, as I am :/ )</li>
+</ol>
+
+
+<p>You can find some documentation on setting up OpenWrap repositories <a href="https://github.com/openrasta/openwrap/wiki/Package-repositories">here</a>. The actual, esoteric details of your hosting needs are something that I can&rsquo;t give specific guidance on.</p>
+
+<p>For me, above setup gives the flexibility I need for my deployment environment (where I can open a single port on a machine in my backoffice intranet to the DMZ servers), while allowing me to easily publish packages in the backoffice environment (where our build machine lives and the rules are somewhat more lax).</p>
+
+<h3>Step 3: Integrate OpenWrap Publishing Into Build Process</h3>
+
+<p>This one I will leave as an exercise for the reader. Personally, I&rsquo;m using Jenkins (née Hudson) for our builds (with most of the action in rake scripts). I&rsquo;ve written some tasks to hand-roll the .wrap (as detailed in Step 1.5 above) and publish that to my fileshare repository.</p>
+
+<p>Bottom line: You need to start producing and publishing wraps as part of your regular build process. Depending on how pervasive your deployment automation will be (just for prod? why not your continuously updated UAT/Staging server, too?) you could continuously push to one repository, while only &ldquo;selectively&rdquo; pushing to another, &ldquo;production-only&rdquo; repository when you&rsquo;re ready to deploy via some manually triggered automation. Which approach is appropriate to your situation will depend, largely, on Step 5 below.</p>
+
+<h3>Step 4: Setup On The Application Servers</h3>
+
+<p>After doing the neccesary legwork on my DMZ servers (like opening the port to my read-only HTTP server in the backend and setting up the OpenWrap shell), I have to a few things.</p>
+
+<p>First, I need to make OpenWrap aware of the repository from which it can fetch the wrap it needs. This was as simple as:</p>
+
+<pre><code>o add-remote myaspnetsite http://buildserver
+</code></pre>
+
+<p>As outlined in Step 2 above, this corresponds to the read-only server that I exposed for my DMZ servers to pull from.</p>
+
+<p>Next, I will initialize a stub project that I&rsquo;m going to use to &ldquo;host&rdquo; the application that I want to deploy via OpenWrap. Finding the place where I want it to be (like <code>D:\Inetpub\wwwroot</code> or what-have-you), I did:</p>
+
+<pre><code>o init-all myaspnetsite_prod
+</code></pre>
+
+<p>OpenWrap will give me some static about setting up the project structure. I can now go into there and set things up.</p>
+
+<pre><code>cd myaspnetsite_prod
+</code></pre>
+
+<p>As above in Step 1, my particular situation warrants that I use <code>use-symlinks: false</code> in my <code>myaspnetsite_prod.wrapdesc</code> file. With that out of the way, I can do:</p>
+
+<pre><code>o add-wrap myaspnetsite -Anchored
+</code></pre>
+
+<p>And, if everything&rsquo;s wired up properly, OpenWrap will download and unpack your package within the <code>myaspnetsite_prod/wraps/myaspnetsite</code> directory. If any of the stuff from previous steps is messed up (like your publishing or hosting for the HTTP repository), you&rsquo;ll have some problems here.</p>
+
+<p>The <code>-Anchored</code> flag tells OpenWrap that the dependency you&rsquo;re adding you should be unpacked in a &ldquo;visible&rdquo; location (ouside of the <code>_cache</code> dir). Normally this is so that you can check that dependency in, but it serves us here by exposing it in a fixed location (independant of the version). More info on package anchoring is available <a href="https://github.com/openrasta/openwrap/wiki/Package-anchoring">here</a>. From here, you should be able to point IIS at the <code>myaspnetsite_prod/wraps/myaspnetsite</code> folder and it will work (provided your .csproj has its references, etc, working right and nothing squirrely happens with how you&rsquo;re reworking the wrap.. this is some brittleness that I&rsquo;ve brought on myself, here.. I hope in the course of discussing this process, a more elegant solution can be sussed out).</p>
+
+<h3>Step 4.5: A Brief Digression On The Topic Of Updating ASP.NET Sites</h3>
+
+<p>The whole point of this exercise is to get to a point where, once we have the OpenWrap infrastructure in place, updating to newer versions will be a snap. This is complicated by a major, blocking issue: OpenWrap won&rsquo;t &ldquo;re-anchor&rdquo; updated packages if any of the files in the old package directory are locked. This is the case because OpenWrap updates anchored packages by removing the old directory and replacing with a new one (which is pretty sensible in most cases). This isn&rsquo;t neccesarily what we want in ASP.NET land, though, we where can just unzip a new install over the old one and, provided there isn&rsquo;t any weirdness with renamed assemblies, etc, ASP.NET will pick up the file changes on the next request and recycle the app automagically. And, while we can unzip over a running application without complaint from IIS, we cannot <em>nuke</em> the directory of a running without, at the least, taking downt he web site (which may cause false alarms with your application monitoring infrastructure).</p>
+
+<p>I get the impression that there&rsquo;s a lot of people who are used to stopping the web site in order to do updates. I&rsquo;ve never been one of those people (unless there&rsquo;s file locking issues that prevent a clean unzip, in which case you have no choice but to stop the site). With this in mind, I prefer a deployment process that involves unpacking a zip and letting it override an existing, live app. If this is a grossly irresponsible perspective to take, I&rsquo;d like to hear about that (I mean, as much as anyone likes to hear &ldquo;you&rsquo;re an idiot!&rdquo;).</p>
+
+<p>Anyways, back to the issue at hand: How to work around OpenWrap&rsquo;s design limitation in terms of updating a &ldquo;live&rdquo; site? More rake scripting, of course!</p>
+
+<p>For me, the strategy is as follows:</p>
+
+<ol>
+<li>I decided to modify the rake task outlined above in Step 1.5 to include an additional rakefile (containing the snippet below) and a CLI unzipping utility (7zip, if you must know) in the deployable artifacts for my wrap.</li>
+<li>The rakefile that is now embedded in the <code>.wrap</code> contains logic to:</li>
+<li>Find out what the version # is of the &ldquo;newest&rdquo;, locally held wrap for our package that we want to continuously update</li>
+<li>Check the remote repository and, using <code>o list-write</code> and some output parsing magic, find out what its newest version of our target wrap is</li>
+<li>If the remote&rsquo;s newest is not equal to ours (unlikely that we&rsquo;ll slidebackwards in revisions and maybe even desirable, at times, if so (like a rollback scenario)), then:</li>
+<li>Run <code>o update-wrap</code> which will, of course, fail to anchor our package (but still download the <code>.wrap</code> for us)</li>
+<li>Having downloaded a new version, we now find the filename of the newest version of our package (which should be the new one)</li>
+<li>We copy out our CLI unzip&#8217;ing util and then use it to unzip our new package (you have to copy it out, otherwise it&rsquo;ll explode when trying to overwrite itself)</li>
+</ol>
+
+
+<p>I ended up with a script something like:</p>
+
+<pre><code>    # This is pretty lame and depends on the impl of o.exe's CLI output.. have to
+    # keep an eye peeled for changes, here
+    def newest_version_of_package_on_remote(pkg, repo)
+      output = `o list-wrap -Query #{pkg} -Remote #{repo}`
+      line = output.split("\n").last
+      line = line.sub(/^.*available: /,'').sub(/\)$/, '')
+      line.split(", ").last
+    end
+
+    task :hotupdate do # this is the task we'll run from a scheduled task on the app server
+      pkg = "myaspnetproject"
+      repo = "myaspnetprojectrepo"
+      Dir.chdir "..\\.." # we're executing from somerepo\wraps\myaspnetproject\tools .. 
+                         # need to move up the somerepo\wraps\ dir
+      localWrap = get_newest_wrap(Dir.pwd).sub(/#{pkg}-/, '').sub(/\.wrap/, '')
+      newestWrap = newest_version_of_package_on_remote pkg, repo
+      if localWrap == newestWrap
+        puts "at latest"
+      else
+        puts "updating..."
+        sh 'o update-wrap'
+        wrapFile = get_newest_wrap(Dir.pwd)
+        Dir.chdir pkg
+        toolsDir = "toolsTmp"
+        mkdir toolsDir
+        cp_r "tools\\7z.exe", toolsDir # have to copy out 7zip from the tools dir, so it doesn't
+        cp_r "tools\\7z.dll", toolsDir # barf when trying to overwrite itself
+        sh "#{toolsDir}\\7z.exe x -y -tzip ..\\#{wrapFile}"
+        rmtree toolsDir
+      end
+    end
+</code></pre>
+
+<h3>Step 5: Flip The Switch</h3>
+
+<p>If you made it here successfully, that means that you&rsquo;re worked out the details for how to facilitate OpenWrap&rsquo;s use as a deployment framework for your project. Now you&rsquo;ll have to figure out how to put it on auto-pilot. The key will be to get to the point where you won&rsquo;t have to log into your application servers <em>at all</em> to do a deployment.</p>
+
+<p>My personal preference is set up a scheduled task on the deployment server that polls for updates on a regular, frequent basis. This way, my deployment choke point is now the act of pushing packages to that repository that is regularly polled (something that I can automate pretty easily as part of my existing build infrastructure). You can easily invert this approach by automating the pushing of packages to your repo and making the update poll be the manually triggered step (via added functionality in your app or some existing tool/server to kick off processes/scripts on your production server).</p>
+
+<p>I use the <code>:hotupdate</code> rake task outlined above, executed every five minutes, to check for new versions of our application and handle the downloading and unzipping on an as-needed basis.</p>
+
+<h3>Conclusion</h3>
+
+<p>This post is a skeletal depiction of a process that I&rsquo;ve worked through in order use OpenWrap for automating my deployment process (which is currently only automated up-through the point of package generation. Actual deployment on the application server is manual and a hassle). I kept things vague on purpose, as I feel like an overly detailed post would be less valuable (due to be the tendency to get bogged down in semantics and the fact that every environment is different).</p>
+
+<p>There are a lot of details to work out, but I think the steps outlined above serve as a good place to start for getting things up and running. There&rsquo;s a pretty good chance that I&rsquo;m doing something Really Wrong, so I&rsquo;m interested in having a discussion about what could be done to improve this process.</p>
+
+<p>With the caveats aside, there are two key points in the OpenWrap workflow where I, pretty much, opt-out in favor doing things a bit differently to suit my own laziness and preferences:</p>
+
+<ol>
+<li>When building a new wrap, I roll one by hand (Step 1.5) using a rake script, so that I don&rsquo;t have to bother with wrapping my brain around the configuration (see what I did there?).</li>
+<li>When trying to update the wrap (Step 4.5), I go through the motions (in order to have OpenWrap download the newest <code>.wrap</code> for me), but anticipate the re-anchoring of the new version failing (because IIS has locked the directory) and will go ahead and do a manual upgrade-in-place (by unzipping the <code>.wrap</code> over the existing anchor, which <em>will</em> work, most of the time, unlike a delete-and-replace). This may or may not be a bad thing and exposes you to certain Troubles as your application evolves naturally over time (assembly conflicts due to renames, to name just one of many.. not to mention the possibility for <code>.dll</code> or other files not being updated due to IIS&#8217; rather eccentric and unpredictable file-locking practices). This whole thing stems from the desire to avoid taking down the site/IIS when I can help it.</li>
+</ol>
+
+
+<p>I would love to have a discussion around these issues and see if there&rsquo;s a possibility to evolve the OpenWrap framework to handle these scenarios/approaches more gracefully, if they&rsquo;re deemed safe enough, valuable, etc.</p>
+
+<p>I hope this post has been valuable for you in your quest to be a Lazier Developer, because that&rsquo;s <em>really</em> what automation about, isn&rsquo;t it?</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/">An Introduction to machine.javascript part 2</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2010-02-18T12:28:51-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Feb 18<span>th</span>, 2010</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/javascript/">javascript</a></li>
+    
+      <li><a href="/blog/categories/web/">web</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This post is a continuation from <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, which introduced the ideas of <code>machine-javascript</code>, namely the script loader and a simple example, showing how a <code>HelloWorldController</code> was instantiated and attached to the page. What was not explored, however, was what the <code>HelloWorldController</code> actually looks like and how it works. That is the topic of this post.</p>
+
+<h3>Let&rsquo;s Dive Right In!</h3>
+
+<p>Here is the content of <code>HelloWorldController.js</code>, loaded into our page in the example shown in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of the series:</p>
+
+<pre><code>    include('jquery.js');
+    include('machine-controller.js');
+    include(function() {
+      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+
+      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+
+      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+
+      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+    });
+</code></pre>
+
+<p>Okay! A lot to take in there. Let&rsquo;s start with the <code>include()</code>s at the top of the file.</p>
+
+<pre><code>    include('machine-controller.js');
+    include(function() {
+      ...
+    });
+</code></pre>
+
+<p>As noted in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, calls to <code>include()</code> are never nested within the scope of a single file, but always occur serially. The first call is to load up <code>machine-controller.js</code>, upon which this file is dependant. If <code>HelloWorldController</code> were dependant upon a &ldquo;ViewRenderer&rdquo; (which is discussed further down), it would also be included at this point. Finally, the actual body of the script is contained within an <code>include()</code>. This is a convention that must be adherred to in order to leverage the utility of <code>machine-includer.js</code>. Strictly speaking, <code>machine-controller.js</code> takes no dependency upon <code>machine-includer.js</code> and you could easily use it with another script loader or no loader at all, but for the purposes of this example we are going to use it.</p>
+
+<pre><code>      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+</code></pre>
+
+<p>At this point, we&rsquo;re just setting up some variables that will be used in the course of defining <code>HelloWorldController</code>. I, by habit, typically assign the top-level <code>this</code> in a given script to <code>global</code>. The next two variables, <code>viewLeft</code> and <code>viewRight</code> are two chunks of text that will make up the &ldquo;view&rdquo; rendered by <code>HelloWorldController</code> (that is, the markup that it attaches to the DOM). This approach is not-at-all optimal for general use, but is merely meant to demonstrate the basic functionality of <code>setView()</code>, which will be covered in-depth below.</p>
+
+<pre><code>      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+</code></pre>
+
+<p>This chunk of JavaScript is the declaration of <code>HelloWorldController</code>&rsquo;s constructor/intializer and is where the majority of <code>Machine.Controller</code>-derived controller objects are configured. There&rsquo;s a lot of important stuff here, so let&rsquo;s go line by line.</p>
+
+<pre><code>      this.init(); // kicks off Machine.Controller's internal setup
+                   // .. always call this first.
+</code></pre>
+
+<p>The <code>init()</code> function in a <code>Machine.Controller</code>-derived object is where internal initialization is housed. It should be the first thing you call in any controller you define. Obviously, overloading/replacing this would be a Bad Thing unless you really know what you&rsquo;re doing. Thankfully, at least, much like Controller development on the server, you&rsquo;re not terribly likely to have deeply nested inheritance hierarchies of Controller classes. But if you do need to do so, you can always take measures to Make It Work.</p>
+
+<pre><code>  this.clickCount = 0;
+</code></pre>
+
+<p><code>this.clickCount</code> is a stateful counter that we&rsquo;re going to use to track clicks to the DOM that this controller &ldquo;owns&rdquo;. This is an example of how client-side controllers are stateful (one thing that can be thought of differently from server-side controllers in many instances).</p>
+
+<p>Another thing to note: it can generally be assumed that any call to <code>this</code> in the top-level scope of a function attached to the prototype for a <code>Machine.Controller</code>-derived object will reference the object itself. This is normal behavior typically but, interestingly, this also applies to functions bound to events using the <code>addAction()</code> function, which is shown below. Typically, at least with jQuery event binding, <code>this</code> is bound to some kind of context information for the event in question. Of course, callbacks passed into jQuery functions like <code>$.each()</code> and <code>$.get()</code> will still have their <code>this</code> variable re-bound, as is expected.</p>
+
+<pre><code>  this.setView(viewLeft + this.clickCount + viewRight);
+</code></pre>
+
+<p>This is the <code>setView()</code> function, mentioned above. It is used to tell a controller what mechanism it will use to get some markup that will represent its presence in the DOM. There are two valid signatures for this function:</p>
+
+<pre><code>      this.setView(aString);
+      this.setView(aString, anotherString);
+</code></pre>
+
+<p>The first signature just takes a single string and is the format used in <code>HelloWorldController</code>. This treats the passed-in string as static markup text and will move to immediately convert it to a DOM and then attach it to the page&rsquo;s DOM when needed. This is the simplest possible use case for <code>setView()</code> and isn&rsquo;t often practical, but can be useful.</p>
+
+<p>The second signature takes two strings: The first is an argument to pass in to a ViewRenderer. The second argument is the &ldquo;key&rdquo; for that ViewRenderer. In this case, the &ldquo;key&rdquo; refers to a string that the renderer uses to globally identify itself when it is registered with <code>Machine.Controllers</code> mechanism for tracking ViewRenderers. The details of how this works won&rsquo;t be covered in this post, but just know that it is there.</p>
+
+<p>If you&rsquo;d like to see an example of this use of <code>setView()</code> and ViewRenderers right now, then look at the <code>/example/example.html</code> file in the <a href="http://github.com/machine/machine.javascript">machine-javascript</a> github repo and check out the &lsquo;ViewRenderers and Views&rsquo; example.</p>
+
+<p>Back to the larger issue of the signifigance of <code>setView()</code>, after calling <code>setView()</code> you should know that any calls to the controller&rsquo;s <code>render()</code> function will cause whatever &ldquo;instructions&rdquo; were passed in to <code>setView()</code> to be reevaluated and the results placed in the <code>domRoot</code> property of the object. You can also arbitrarily call <code>setView()</code> at your pleasure to change the &ldquo;rendering strategy&rdquo; for a given controller (but will of course want to call <code>render()</code> after that so the changes can be reflected in the <code>domRoot</code>).</p>
+
+<p>The last line in our controller&rsquo;s initializer function is:</p>
+
+<pre><code>  this.addAction('click', '#clicker', this.onClickerDivClick);
+</code></pre>
+
+<p>This is the previously mentioned <code>addAction()</code> function. It is a wrapper around jQuery&rsquo;s event binding mechanism that provides a few advantages:</p>
+
+<ul>
+<li>Events bound in this fashion don&rsquo;t need to be manually rebound when the controller&rsquo;s DOM changes (this uses a combination of jQuery Live Events and manual re-binding on DOM change).</li>
+<li>As mentioned above, callbacks passed in to <code>addAction()</code> keep their <code>this</code> property bound to the controller object, instead of the context for the event that called it.</li>
+<li>It provides a straightforward interface to pool your event bindings in a single location.</li>
+</ul>
+
+
+<p>The syntax is straightforward: The first argument is the name of the event that should be listened for. This uses the jQuery convention for event names (<code>onClick</code> becomes <code>click</code>, <code>onBlur</code> becomes <code>blur</code>, etc). The second argument is the CSS selector for the element(s) you want a callback bound to. And the third argument is the function callback you want to pass in. For the sake of keeping things clean, I specify my event handlers on the prototype of the controller itself and pass those in. There&rsquo;s nothing that says you can&rsquo;t specify the function inline, if you so desire. Do note, though, that <code>this</code> will be bound to the enclosing controller regardless.</p>
+
+<p>One last interesting (and important) detail: event callbacks bound using <code>addAction()</code> will only be triggered when the event occurs on elements <em>in the subset of the DOM owned by the controller</em>.</p>
+
+<p>So if, for example, you have several controllers in a given page that each expose elements that all have the <code>foo</code> class, then a call to <code>addAction('click', 'a.foo', this.someCallback);</code> will only trigger the <code>this.someCallback</code> function for clicks on those links in the view generated by the controller. Nifty, eh?</p>
+
+<p>Looking at the next chunk of JavaScript in our <code>HelloWorldController</code> example, we have:</p>
+
+<pre><code>      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+</code></pre>
+
+<p>Here, we see that <code>Machine.Controller</code> uses the usual prototypical inheritance found in JavaScript. It was originally based on John Resig&rsquo;s &ldquo;Simple JavaScript Inheritance&rdquo; model but was subsequently converted to use the more common prototype model. After that, you can see that we assign <code>HelloWorldController</code>&rsquo;s prototype to a simple, local variable called <code>hw</code> for convenience. This is to merely save keystrokes. It isn&rsquo;t such a big time-saver for simple controllers like this one but, if your controller had more functions attached to its prototype, this sort of thing becomes more valuable.</p>
+
+<p>Secondarily, it&rsquo;s also useful to declare the &ldquo;public&rdquo; functions and properties for a Controller, while allowing you to create functions that aren&rsquo;t attached to it and keep those as &ldquo;private&rdquo;, if that&rsquo;s your thing.</p>
+
+<p>And finally, we have:</p>
+
+<pre><code>      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+</code></pre>
+
+<p>This is the callback that was passed-in to <code>addAction()</code> in our constructor function. It is a typical event-handler callback, with the event information as the sole argument to the function. This may or may not be useful to you and you can omit it if you want to. As is indicated in the comment, <code>this</code> is bound to the enclosing controller. This means that we have access to any stateful information contained therein (<code>clickCount</code>, in this case).</p>
+
+<p>The callback increments the <code>clickCount</code> property by one and then calls <code>setView()</code> with the same <code>viewLeft</code> and <code>viewRight</code> variables used in the constructor, but with the newly incremented <code>clickCount</code>. If we were using a more sophisticated rendering scheme, we would merely modify the controller&rsquo;s <code>model</code> property and let that &ldquo;trickle down&rdquo; to the ViewRenderer. In this case, the call to <code>setView()</code> would go away and the subsequent call to <code>render()</code> will be all that would be needed to update the DOM. But, since we&rsquo;re using the simplest possible approach to specifying a view in this example, we have to update the view&rsquo;s markup ourselves via <code>setView()</code>.</p>
+
+<h3>Conclusion</h3>
+
+<p>In this post, we covered:</p>
+
+<p>&ndash; The contents of the <code>HelloWorldController.js</code> file that is first mentioned in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of this series. A typical <code>Machine.Controller</code>-derived object contains:
+&ndash; A constructor function, with the first statement in it being a call to <code>init()</code>. This does the internal setup for <code>Machine.Controller</code> and should always be called first. Also don&rsquo;t replace it in the prototype unless you know what you&rsquo;re doing.
+&ndash; In additional to any per-controller setup, a constructor will usually contain:
+&ndash; A call to <code>setView()</code> to designate the view rendering scheme for this controller. You can either pass in static text (which you need to update yourself via calls to <code>setView()</code>) or designate a pre-registered ViewRenderer to handle the details for you. The details of how ViewRenderers work is for another post.
+&ndash; One-or-more calls to <code>addAction()</code> to bind event callbacks to elements in the subset of the DOM owned by the controller.
+&ndash; Each call t <code>addAction()</code> is going to need a corresponding callback. <code>this</code> in the callback will correspond to the enclosing controller, giving you access to state information.
+&ndash; Call <code>render()</code> when you want to update the markup in the <code>domRoot</code>.</p>
+
+<p>Stayed tuned for Part 3, where I&rsquo;ll go over one of the most useful architectural features of <code>machine-controller.js</code>: ViewRenderers. Until then, take it easy!&#8217;</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2010/02/17/an-introduction-to-machine-dot-javascript/">An Introduction to machine.javascript</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2010-02-17T12:06:31-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Feb 17<span>th</span>, 2010</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/javascript/">javascript</a></li>
+    
+      <li><a href="/blog/categories/web/">web</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This is the first in a series of [hopefully many] blog posts on the topic of <a href="http://github.com/machine/machine.javascript">machine.javascript</a>, an open source framework for helping developers create testable, deployable and well-factored UIs on the client in JavaScript. It covers some of my exposure to tools in this space and an overview of what <code>machine.javascript</code> consists of and how to use it. This post is tightly coupled to <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> in the series and each should not be read without considering the context of the other.</p>
+
+<h3>My experience with JavaScript MVC</h3>
+
+<p>As I&rsquo;ve gotten involved in my professional and personal capacities with rich, client-based UIs in te browser, one of the most indispensible patterns I&rsquo;ve had at my disposal would have to be &ldquo;MVC&rdquo;. I put MVC in scare-quotes because it is, in my opinion, one of the most overloaded terms in software development today. The most basic, valid definition for MVC in the context of this post, though, is to say that it is about creating patterns for application development that deliberately seek to segregate control and rendering logic which are optimized for the particular platform (in this case, JavaScript in the browser).</p>
+
+<p>With this in mind, the <a href="http://www.eleutian.com">Eleutian</a> team (notably Daniel Tabuenca) produced a kick-ass library that I always felt really attacked the problem of building complex, client-side applications in JavaScript in an effective, sensical fashion. It could have to do with the fact that this framework was the first I ever used in this particular solution/problem space, but I&rsquo;ve reviewed/experimented with several other frameworks since and never really liked any of them. Some reasons for this:</p>
+
+<ul>
+<li>Many of them (<a href="http://www.javascriptmvc.com">JavaScript MVC</a> in particular) are <em>very</em> heavy, requiring things like having Rhino installed to do command-line scaffolding (wtf?!)</li>
+<li>Others are tightly coupled in the manner in which view/template rendering is handled. Modern JavaScript development in the browser is interesting because there are several different ways to &ldquo;get there&rdquo;, when it comes to how you programatically display content. Options include, but aren&rsquo;t limited to: Direct DOM manipulation via jQuery/other frameworks ( $(&lsquo;#container&rsquo;).append(&lsquo;<div></div>&rsquo;); ), JavaScript Templating (EJS, Pure, etc) and/or tools/plugins that take structured data and directly output markup (jQuery.datatables, jqplot, etc). Eleutian&rsquo;s framework was originally tightly coupled to EJS for template rendering, but this has since changed (as I will explain shortly).</li>
+<li>Some frameworks get the abstraction wrong, in my opinion. The scope of what I, the developer, want when doing client-side work is pretty narrow: aggregate events around some subset of the DOM and have a uniform way of manipulating/regenerating the markup in that subset in response to said events. The premise of &ldquo;smart models&rdquo; in an isolated browser environment (wiring up AJAX calls to the server) is way too much abstraction for me and, in the laissez-faire world of JavaScript, strikes me as very open to &ldquo;entering a world of pain&rdquo; scenarios.</li>
+</ul>
+
+
+<p>From my time with the <a href="http://www.eleutian.com/">Eleutian</a> team, one of the things I missed the most was the MVC framework I had used when I worked there. And while I can by no means take credit for creating or expanding <code>machine.javascript</code>, I can definitely say that I was able to harass Aaron Jensen and Dan into releasing the libraries in question as OSS (although they claim they were going to do it anyways). Hence, the <a href="http://github.com/machine/machine.javascript">github repo</a> and this blog post.</p>
+
+<h3>What is machine-javascript?</h3>
+
+<p>At the heart of it, machine-javascript consists of two components, each an individual javascript file:</p>
+
+<ul>
+<li><code>machine-includer.js</code> &mdash; Specifies a &ldquo;script loader&rdquo; that works in a &ldquo;nested&rdquo; fashion (as opposed to &ldquo;flat&rdquo; includers like <a href="http://www.labjs.com">LABjs</a>). It allows you to specify your dependencies in a manner similar to how you would in server-side code and then load it all (in a cascading fashion) during the page load. Like other script loaders, it is often not practical for performance-critical/production uses, but is great for dev/debug work and provides a critical advantage: The nested, per-file <code>include()</code> statements provide get hints for a recursive script parser to build a list of dependencies which you could use to create a single, bundled for your markup. The include() function that it creates can handle both external script loads (when passed a string) or evaluate functions passed to it. Regardless of which, both are evaluated in order of specification based upon the dependency tree created when looking at how invokations of include() are specified in files and the same external script is only loaded once.</li>
+<li><code>machine-controller.js</code> &mdash; Contains a prototype for the <code>Machine.Controller</code> object, which can be inherited in your &ldquo;controllers&rdquo; and provides a straightforward framework for specifying events and rendering logic on a piece of the DOM that the controller will be associated with.</li>
+</ul>
+
+
+<p>Leveraging these two components, I will demonstrate how to create a simple controller with machine-javascript.</p>
+
+<h3>A Simple Example</h3>
+
+<p>Let&rsquo;s consider the simplest possible <em>hello world</em> case, utilizing machine-javascript.</p>
+
+<pre><code>&lt;head&gt;
+      &lt;title&gt;Hello, world!&lt;/title&gt;
+      &lt;script type="text/javascript" src="machine-includer.js"&gt;&lt;/script&gt;
+    &lt;/head&gt;
+</code></pre>
+
+<p>In our page&rsquo;s <head> tag section, we have a single script include. All we are going to load in this page in an explicit, static fashion is the <code>machine-includer.js</code> script.</p>
+
+<p>Somewhere down in the <body>, we have a chunk of markup that looks something like:</p>
+
+<pre><code>      // this is the initial setup for machine.includer
+      Machine.Includer.configure({scriptLocations : {'.*':''}});
+
+      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');
+
+      // and kick it all off once the page loads
+      include(function() {
+        $(function() {
+          var hw = new HelloWorldController();
+          hw.render();
+          $('#container').append(hw.domRoot);
+        });
+      });
+
+      include.load();
+
+  &lt;/script&gt;
+    &lt;div id="container"&gt;&lt;/div&gt;
+</code></pre>
+
+<p>So this is interesting; We do some inital configuration for <code>machine-includer.js</code>, then load our external scripts that the page is dependant upon and then instantiate an object (defined in an external dependency) and attach one of its properties to the DOM via jquery&rsquo;s <code>append()</code> function.</p>
+
+<p>Let&rsquo;s take each signifigant chunk on its own&hellip;</p>
+
+<pre><code>  // this is the initial setup for machine.includer
+  Machine.Includer.configure({scriptLocations : {'.*':''}});`&lt;/pre&gt;
+</code></pre>
+
+<p>This is the only initialization call needed to set up <code>machine.includer.js</code>; after this, you can safely call <code>include()</code>. The hash that is passed into <code>configure()</code> has one notable parameter: <code>scriptLocations</code>. It is a series of pairs that say to the includer, &ldquo;Hey, if you encounter the regex pattern in the left component in an includer URL, please prepend it with the contents of the right component.&rdquo; This means that, if you had some hinting from the server based on environment (dev, production, etc), you could configure <code>machine-includer.js</code> to mangle the script loads done via <code>include()</code> so they actually called out to an external CDN or local folder, depending on the runtime environment.</p>
+
+<p>For example, consider if your static content was delivered by a CDN like Cloudfront in your production setting, but was served from a local Scripts directory in the same web server when run in the dev/test environments.</p>
+
+<p>In an ASP.NET MVC WebForms template with a strongly-typed view that had an Environment property hooked up to some mythical enum or the like (this applies just as easily to other server frameworks) the server-side template might look like:</p>
+
+<pre><code>      // this is the initial setup for machine.includer
+      &lt;% 
+        var prefix = Model.Env == Env.Production ? 'http://s3.yourdomain.com/path/'
+          : '/Scripts/';
+      %&gt;
+      Machine.Includer.configure({scriptLocations : {'^static.*': '&lt;%= prefix %&gt;'}});
+</code></pre>
+
+<p>In this way, you can drive how your scripts are loaded at runtime with a simple, per-page check to the ambient environment.</p>
+
+<pre><code>      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');`&lt;/pre&gt;
+</code></pre>
+
+<p>In this chunk of code, we are declaring our dependencies for this page, utilizing calls to the <code>include()</code> function with strings for the paths to the files in question. As with <script> tags, you can pass in absolute or relative paths. But, as noted above with the <code>scriptLocations</code> configuration, you can also establish conventions (driven by server-side configuration) for mangling the path passed to <code>include()</code> to account for special cases.</p>
+
+<pre><code>      // and kick it all off once the page loads
+      include(function() {
+        $(function() {
+          include.load(); // actually loads the scripts
+
+          var hw = new HelloWorldController();
+          hw.render();
+          $('#container').append(hw.domRoot);
+        });
+      });
+</code></pre>
+
+<p>In this block we actually have some running javascript code, passed within a function to an invokation of <code>include()</code>. One thing worth pointing out, here, is that (when taken into context with the previous block where we used <code>include()</code> to load external scripts) calls to <code>include()</code> are never nested within the scope of a single file, they always appear serially. Now, when passing a string URL to <code>include()</code>, there will of course be calls to <code>include()</code> in the file indicated by the URL, but there are never calls to <code>include()</code> within the scope of a function passed to an existing call. Please remember this when writing your code or it&rsquo;ll fail and you&rsquo;ll be left scratching your head (speaking from experience, here).</p>
+
+<p>Back to the function itself, you can see that it consists of a callback for jQuery&rsquo;s &ldquo;onReady&rdquo; event binding using the <code>$(function() { });</code> convention. When the document is ready (the DOM is completely loaded, mainly), we create an instance of a <code>HelloWorldController</code>, which we can assume was imported in a previous call to <code>include()</code> (the code for <code>HelloWorldController</code> will be shown shortly). There is some setup that happens in the course of <code>HelloWorldController</code>&rsquo;s initialization, which allows us to then invoke its <code>render()</code> function. This is a function defined in the <code>Machine.Controller</code> prototype that leverages some configuration done during initialization and renders the controller&rsquo;s desired markup in its <code>domRoot</code> property. Subsequent calls to <code>render()</code> will update the markup stored there.</p>
+
+<p>Finally we, using jQuery&rsquo;s <code>append()</code> function and attach our controller&rsquo;s newly available <code>domRoot</code> to an element with an id of <code>container</code> (shown in the complete example above).</p>
+
+<p>One of the fringe benefits of <code>Machine.Controller</code> is that subsequent calls to <code>render()</code> (outside of or within <code>HelloWorldController</code>) will automatically update the domRoot <em>and</em> be reflected in the DOM without having call to <code>append()</code> on your container element again. This also applies to events bound from within <code>HelloWorldController</code> using <code>Machine.Controller</code>&rsquo;s syntax for doing so.</p>
+
+<p>Going back to the complete example above, let&rsquo;s examine, once again, the external scripts loaded as dependencies for the page.</p>
+
+<pre><code>      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');`&lt;/pre&gt;
+</code></pre>
+
+<p>You can guess pretty easily what&rsquo;s within <code>jquery.js</code>, and since it was needed in order to append our instance of <code>HelloWorldController</code> to the container <div> we loaded it up via <code>include()</code>.</p>
+
+<p>But what about <code>HelloWorldController.js</code>? This contains the definition for our controller, the contents of which will be shown in <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> of this series.</p>
+
+<p>Finally, we have:</p>
+
+<pre><code>  include.load();
+</code></pre>
+
+<p>This actually triggers the script load and should come after all of the previous calls to <code>include()</code>.</p>
+
+<h3>Conclusion</h3>
+
+<p>In this post, we covered the following topics:</p>
+
+<ul>
+<li>A brief overview of my anecdotal introduction to MVC in JavaScript and my personal opinions and nags about it.</li>
+<li>A rough description of the two pieces that make up <code>machine-javascript</code>: <code>machine-includer.js</code> and <code>machine-controller.js</code>.</li>
+<li>A &ldquo;hello world&rdquo; example was shown of the HTML markup for an example page that uses the includer and controller. The contents of the actual controller script have not yet been shown (and are saved for part 2 in this series).</li>
+<li>Some exposure to the semantics of using <code>machine-includer.js</code>.</li>
+<li>Shows how a finished controller is instantiated and attached to the DOM.</li>
+</ul>
+
+
+<p>I hope this post has been enlightening for you, the reader. Parts 1 and 2 really belong together (as each is uselss without the other), but if combined it&rsquo;d be a classic <a href="http://www.urbandictionary.com/define.php?term=tl%3Bdr">tl;dr</a> article. I thought that was a good place to split them up. In any case, please continue on to <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> for the rest of the story!</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2010/01/15/i-am-alt-dot-net-pursefight/">I am Alt.Net Pursefight</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2010-01-15T11:57:57-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Jan 15<span>th</span>, 2010</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/drama/">drama</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This post is only of use to those who were monitoring/involved in the ALT.NET &ldquo;movement&rdquo; circa 2007 and 2008. It was an age of high adventure where a desire, predicated on the assumption that the status quo in terms of Microsoft-driven guidance on Patterns &amp; Practices and tooling was not leading to the creation of Good Software in the short and long terms, had given rise to a set of &ldquo;alternative&rdquo; orthadoxies meant to improve the lot of developers.</p>
+
+<p>If this situation doesn&rsquo;t mean anything to you, or if you arrived &ldquo;after the party&rdquo;, then this post has little value.</p>
+
+<p>Recently, I decided to write the following email to one Scott Bellware:</p>
+
+<blockquote><p>I&rsquo;ve been wanting to write you to get something off of my chest: I am the sole person behind the ALT.NET Pursefight blog (since discontinued), twitter account etc. It&rsquo;s something that&rsquo;s been sticking in my craw for some time and I&rsquo;m only now getting around to rectifying it. My apologies for my laziness on this. We&rsquo;ve only met once (at the &ldquo;Night of BDD&rdquo; event that you attended in Seattle where you sat there and got verbally abused by Jim Newkirk and Charlie Poole for two hours). We don&rsquo;t have any kind of relationship, professional or otherwise, but it&rsquo;s something that I&rsquo;ve wanted to tell you, nonetheless.</p>
+
+<p>I&rsquo;ve grown to respect you over time (during and after my period operating under the ALT.NET Pursefight monicker). Not just for your community work, but for striking out as an independent and pretty much putting your money where your mouth is. I figure that I would, in fact, have a lot to learn from you (by virtue of your longevity in the industry alone) and were I ever to actually contact you to try and dig out some of that knowledge for my own benefit or the benefit of the community at-large, I&rsquo;d be misrepresenting myself if I didn&rsquo;t make this disclosure. As far as my respect goes, all I can say is: you were pretty much proven right on every count with regards to your insights as to the trajectory of the &ldquo;ALT.NET movement&rdquo;, as well as on numerous technical issues: EF is indeed a travesty, amongst other things. I also agree that education is the way forward to &ldquo;raise the water line&rdquo; for the community as a whole in terms of bringing the average level of competency up for the aggregate of developers but, having experience with the &ldquo;minister to the heathens&rdquo; approach to outreach/education, I still think the process needs some work (sadly, most of the issues I observed came from trying to motivate the &ldquo;knowledgable&rdquo; people to give up their time and put aside profit/renown motives to engage in this public service). I am also, perhaps unlike you, quite dubious about the whole Software Craftsmanship thing, even though its proponents seemed to have ( perhaps from observing ALT.NET&rsquo;s fate) hedged their bets a bit and reduced it to a series of bland &ldquo;we care more&rdquo; truisms.</p>
+
+<p>As for why I did the whole ALT.NET Pursefight thing in the first place, I thought it was needed at the time. And perhaps there was some capacity where it could have been useful or performed some function of value for the community; If that was the case, I feel like I utterly failed in it and, as such, just gave up on the whole thing. I apologize for the ad hominem attacks against you. If you still want to kick my ass, I guess you now know with whom you can make arrangements to try and do so next time you&rsquo;re in Seattle. In all honesty, you&rsquo;re the only person that I&rsquo;ve disclosed this information to (besides one personal friend who knew from the start), as I feel like you&rsquo;re the only person who bore any real amount of non-substantive criticism from me. What you do with it (wreck my professional persona, firebomb my house, etc) is up to you, I guess. That being said, I don&rsquo;t really feel like I have any real &ldquo;need&rdquo; to have a public coming out where I can announce to the world that I was ALT.NET Pursefight; it wouldn&rsquo;t achieve anything. I don&rsquo;t need any boost from the pseudonym to properly heckle and ridicule any of the current crop of self-aggrandizing idiots and their enablers in the community. And I doubt that I really fall into line, in retrospective, with any of the opinions expressed (I don&rsquo;t think I ever really took any sides, just threw tomatoes at others from safe cover) as ALT.NET Pursefight and would have to defend were I do to claim the identity. Chalk it up to youth and stupidity.</p>
+
+<p>Anyways, I just wanted to share this with you so that, if I ever do meet you, I can at least buy you a beer and not feel like a douchebag while doing so. I can&rsquo;t expect you to want to &ldquo;forgive&rdquo; (is that even the right word?) me or what-have-you, but at least you&rsquo;ll know that the person who said stupid things eventually came clean.</p></blockquote>
+
+<p>To which he replied.</p>
+
+<blockquote><p>The value in making this disclosure public would be in giving the community one more example of public integrity.  Every exemplary action that goes unseen doesn&rsquo;t contribute as much as it can. Although I appreciate starting my week with your example of courage.</p></blockquote>
+
+<p>Why did I take up the ALT.NET Pursefight! name? I can&rsquo;t say for sure, but I think it boils down to something like: I lacked the technical chops, at the time, to enter into and interact with the community as peer, so I assumed an anonymous personality and begin a meta-commentary on the &ldquo;community&rdquo; and its personalities. In a way, I was catering to a specific sub-group that wanted to heckle and redicule the &ldquo;prevailing personalities&rdquo; of the ALT.NET community (who, warts aside, were providing value for said community). But, regardless of whether or not I was just &ldquo;giving them what they wanted&rdquo;, I have to take personality responsibility for my actions.</p>
+
+<p>You can gather from the email that I was reluctant to make the public disclosure that I am making now. But Scott makes a good point on the value of doing so, the merits of which I can add nothing to.</p>
+
+<p>I don&rsquo;t feel like I owe the &ldquo;community&rdquo; as an abstract any apology; It has soldiered onwards, marching blandly towards its own irrelevancy without any help/hinderance from me personally. Some good things have come out of it (although it&rsquo;s perhaps fallacious and premature to assume the correlation of Microsoft&rsquo;s changing stance towards OSS in the dev community was caused by ALT.NET the movement&mdash; Although I&rsquo;m sure many of the prominent OSS people that they took &ldquo;out of circulation&rdquo; has helepd in changing minds internally). That being said, I do owe apologies to many individuals within the community, about whom I said stupid and unjustified things. To them: I am sorry.</p>
+
+<p>The future of &ldquo;progressive&rdquo; techniques in the .NET developer community still hangs in the balance, as far as I&rsquo;m concerned. Microsoft continues to crank out vendor lock-in focused patterns and APIs, especially if you take into context the possibility of the &ldquo;Silverlight for every platform&rdquo; mutterings and the whole EF/One-data-binding-to-rule-them-all talk coming from some bloggers. I personally feel like their open source overtures are a short/mid-term strategy to win ethical boons while still slipping in their typically sub-standard solutions and betting that the mediocre developers and managers will pick the easy wrong, rather than the hard right. To me, that&rsquo;s what their Open Source support is: A hedge. Whether I&rsquo;m correct in that assessment or not is something that history will have decide.</p>
+
+<p>We have to recognize this for what it is and address it as such in the sunlight of public discourse and intellectual honesty; Anonymous sniping and heckling isn&rsquo;t the solution. This is where I was wrong in the past and this blog post is a step towards correcting that mistake.</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2009/11/06/saber-a-newspeak-web-framework/">Saber: A Newspeak web framework</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2009-11-06T11:50:39-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Nov 6<span>th</span>, 2009</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/newspeak/">newspeak</a></li>
+    
+      <li><a href="/blog/categories/web/">web</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>I&rsquo;m very pleased to announce the creation of yet another web framework, although it is the first (that I know of) for the <a href="http://newspeaklanguage.org">Newspeak</a> platform. It started out as an intellectual exercise to explore Newspeak and some of it&rsquo;s reflective capabilities and idiosyncracies (specifically the pervasive class nesting). It was a very interesting and enjoyable development experience, to be sure (although it wasn&rsquo;t without its own gotcha moments and difficulties). Prior to this project, I played with Newspeak a bit at the time of the first release in late February. Besides that, my only experience with this style of development is some recreational programming with Squeak (I worked through about two-thirds of the <a href="http://squeak.preeminent.org/tut2007/html/">laser-game</a> tutorial). Newspeak is a very young, yet capable and robust platform and I am more than impressed with what I&rsquo;ve encountered so far, although a lot of its much-heralded functionality has yet to be implemented. All in good time, I suppose.</p>
+
+<h3>Saber and web frameworks in a historical context</h3>
+
+<p>Saber is a web application framework that takes a somewhat different approach to web application development and modelling from other, more popular frameworks that you may have heard of. In a way, it may be a sort of counter-evolution in terms of conceptualization of how web frameworks have been structured since Rails came on the scene.</p>
+
+<p>In the <a href="http://en.wikipedia.org/wiki/Web_application#History">Bad Old Days</a>, HTTP was used exclusively as a static content presentation protocol, where URL requests typically mapped to documents in a folder under the wwwroot of some site. When server-side technology solutions (ASP, Java Servlets, CGI, etc) became more common, it ended up being some script/code handling requests, which may or may not have been routed to a script corresponding to the URL somehow. But, with the rise of Rails and the slew of other HTTP-based &ldquo;MVC&rdquo; frameworks that have followed in its wake, we now have a popular paradigm of Controllers and Actions and the basic request-handling conventions that they bring to mind. When the need for more taxonomy beyond Controller/Action became perceived as necessary, we got things like Areas or custom routing schemes to match a request for some URL to a given action, perhaps with some parameter mapping to give the whole thing a more RESTful feel.</p>
+
+<p>The pitfalls of the Controller/Action modelling pattern for web frameworks is something that isn&rsquo;t within the scope of the topic of this post, but it suffices to say that it has become enough of a nuisance after a while for any non-trivial example application that several people have come up with alternative approaches. Foremost of these in my mind is <a href="http://www.sinatrarb.com">Sinatra</a>, an excellent framework that models endpoints as &ldquo;routes&rdquo; (that is, some HTTP Method/URL pair that can be matched by a request) and a block of code to handle that request when the route is matched. I have experimented a bit with porting this approach to the ASP.NET world (the results of which can be found <a href="http://github.com/olsonjeffery/mercury">here</a>). This approach is present in several frameworks as a &lsquo;first-class&rsquo; alternative to the Controller/Action structure so popular elsewhere (from the direct url->handler WSGI mapping in Google AppEngine&rsquo;s <a href="http://code.google.com/appengine/docs/python/gettingstarted/usingwebapp.html">webapp</a> framework to <a href="http://trac.caffeine-it.com/openrasta">OpenRasta</a>).</p>
+
+<p>Saber subscribes to the above request/routing-centric viewpoint, but with a twist. From the Saber README:</p>
+
+<blockquote><p>Essentially: Instead of artificially aggregating endpoints into a Controller/Action hierarchy, Saber lets the structure of the routing handlers becoming the organizing taxonomy for the application.</p></blockquote>
+
+<p>To further entertain this MVC straw-man, most stereotypical MVC web frameworks reveal the intent and function of their endpoint handlers by aggregating them as actions within controllers. In some static frameworks (in Java or .NET, mostly), the aggregation is also an administrative concern for convenience when using an Inversion-of-Control scheme, leading to kludgey groupings of functionality that don&rsquo;t scale well, in my experience.</p>
+
+<p>So, how does Saber acheive this taxonomy? By using a fundamental feature of Newspeak: pervasive class nesting. In Newspeak, there is no global namespace. Practically, this means that every &ldquo;top-level&rdquo; class itself acts as a module. Within this top-level class, you can nest other classes. It seemed natural, to me, to use this approach to model a web site&rsquo;s request handlers, with a class called <code>foo</code> handling requests to <code>/foo</code>, and a class nested within that one called <code>bar</code> handling requests to <code>/foo/bar</code>, etc. Each of these &ldquo;Handler&rdquo; classes implements one or more methods that each correspond to an HTTP method (<code>onGet:</code> for GET, <code>onPost:</code> for POST, etc). These Handler methods are themselves the actual endpoints for a given request.</p>
+
+<p>Saber also includes a &ldquo;toy&rdquo; view rendering system, [creatively] named SaberView.</p>
+
+<h3>So what does this look like?</h3>
+
+<p>At the highest level, you have a &ldquo;site&rdquo; class that acts as a model/container for your site&rsquo;s definition. This site contains a few administrative things (like the name of the site for the httpd, the port, etc). Besides that, it must include a nested class called SiteRoot that inherits from SaberHandler (which is the basic route Handler class in Saber). That class itself will match on requests to the root of a site. From there, you can nest classes that match to &ldquo;nodes&rdquo; in a route request. For example:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+</code></pre>
+
+<p>This would be an example of a taxonomy of classes that would have handlers that could potentially match requests for <code>/</code>, <code>/foo</code>, <code>/baz</code> or <code>/baz/bar</code>. Once again, a handler will only be called if it implements a method corresponding to the HTTP method of a request. So if <code>/baz/bar</code> only implements <code>onPost:</code>, then a GET request to <code>/baz/bar</code> will return a 404.</p>
+
+<h3>Specialized handlers</h3>
+
+<p>But vanilla route handling isn&rsquo;t all that Saber does. It handles a number of &ldquo;must have&rdquo; features for routing-centric web frameworks, including: a NotFound handler scheme, &lsquo;parameter&rsquo; handlers and static file serving.</p>
+
+<h4>Not found handlers</h4>
+
+<p>By default, Saber will return a generic 404 response if a request&rsquo;s url cannot be matched to a handler. Optionally, you can specify a special handler that inherits from <code>SaberNotFoundHandler</code> that will be processed when a request cannot be matched to an existing Handler. Otherwise, it works just like any other handler with the <code>onGet:</code>, <code>onPost:</code>, etc.</p>
+
+<h4>Parameter handlers</h4>
+
+<p>Saber allows specifying a Handler nested within another one, inheriting from <code>SaberParameterHandler</code> to be used as a special-case parameter matching handler. That is, given the following taxonomy:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+    - nameParam
+</code></pre>
+
+<p>In this case, the <code>nameParam</code> class is a class that inherits from <code>SaberParameterHandler</code>. What this means is that, at request time, if the request url doesn&rsquo;t match to any of the other &lsquo;sibling&rsquo; handlers at the same level as the parameter handler, then the parameter handler itself will be matched. This way, it could be used as a catch-all and won&rsquo;t interfere with handlers at the same level. This means that requests for <code>/baz/bar</code> would match to the <code>bar</code> class, but requests for <code>/baz/john</code> or somesuch would match to the <code>nameParam</code> handler, since there is no other handler that would match the request, otherwise. Also, the value of the request (in the case of the previous example &lsquo;john&rsquo;) will be stored within the requests query fields with <em>the name of the handler</em> as the key.</p>
+
+<p>Naturally, this means that only a single <code>SaberParameterHandler</code>-inheriting class can be nested within a group of sibling handlers. Besides the above issues, the handler behaves exactly like a normal handler, including allowing other handlers to be nested within it.</p>
+
+<h4>Serving static content</h4>
+
+<p>And what web framework would be complete without a means with which to serve up CSS, JavaScript, etc? Saber allows for classes that inherit from <code>SaberStaticFileHandler</code> that are nested with the SiteRoot to be mapped to physical locations on the filesystem (exposed by overriding the <code>documentRoot</code> method on the class) and mapped to the class&#8217; name. So a class inheriting from <code>SaberStaticFileHandler</code> named <code>static</code> and pointing to a location on the filesystem would be matched. A request for <code>/static/style.css</code> would be matched to whatever path was specified in the <code>documentRoot</code> with <code>style.css</code> appended to the end.</p>
+
+<h3>What&rsquo;s not-so-great about Saber, right now?</h3>
+
+<p>First and foremost: I&rsquo;m not terribly happy with the rather &ldquo;minimalistic&rdquo; view engine. It has two very useful features (value substition and block inheritance), but that&rsquo;s it. I, personally, am a very big fan of pushing as much work onto the client javascript as possible, using server-side views to deliver JSON and that&rsquo;s it, if possible. But there are always some situations where it makes sense to just do the rendering on the server (like some non-interactive reporting that won&rsquo;t feature any AJAX callbacks after the initial request). With this in mind, a slighlty more robust solution with conditionals, looping and more sophisticated value substitution (that allows passing in actual objects instead of just strings) would be nice, longterm.</p>
+
+<p>Also, Saber is currently tightly coupled to the underlying platform for the Newspeak environment: Squeak. This isn&rsquo;t a bad thing necessarily, but eventually Newspeak will move beyond this and Saber currently uses HttpService, which is used in <a href="http://www.seaside.st/">Seaside</a> (not to mention several collection primitives, HttpRequest/Response, etc). I&rsquo;m glad that the Squeak libraries are there, as they allowed me to cut some corners and concentrate on features instead of low-level plumbing, but these things will have to be replaced longterm. Whether or not Saber survives long enough to see that day is another question.</p>
+
+<p>Another nagging issue is that Saber doesn&rsquo;t support multiple sites in the same instance using the HTTP 1.1 host header. This is supported in the underlying httpd from Squeak, but isn&rsquo;t something that I&rsquo;ve gotten around to implementing.</p>
+
+<p>Overall, I tried to keep the scope of the project somewhat narrow (I&rsquo;ve only been working on it for a few weeks and I&rsquo;m quite pleased with the progress I&rsquo;ve made). I mostly wanted to get the project out &ldquo;into the wild&rdquo; in order to get some feedback on the viability of this approach. I wouldn&rsquo;t really recommend the nested class approach other platforms like Java or .NET, even though they support this feature. Alot of what makes nested classes appealing in Newspeak is that it&rsquo;s a first-class concern and is built into the IDE, so there&rsquo;s some tooling to reduce the friction. I wouldn&rsquo;t say that this same tooling/mindset exists for other platforms.</p>
+
+<h3>How to see Saber in action</h3>
+
+<p>The README.md in the <a href="http://github.com/olsonjeffery/saber">Saber repository</a> has some pointers on how to get started, should you be so inclined.</p>
+
+<h3>Conclusion</h3>
+
+<p>I&rsquo;d like to give a big thanks to the motivating people behind this project: The Newspeak team, for conceiving of this awesome vision and delivering a working prototype for people like me to hack around with. I wish this project the best and hope to find a way to get involved with helping move things forward, longterm. Also, all of the people who aren&rsquo;t satisfied the state of things in terms of software abstractions and patterns in general. Whether you&rsquo;re a pathological tinkerer like me or a more pragmatically-minded person, it&rsquo;s the unreasonable nerd who isn&rsquo;t satisfied with the reigning paradigm that actually moves the ball forward.</p>
+
+<p>Please note that I don&rsquo;t actually consider Saber to be a part of the canon of earth-shattering software innovations or theory; I just like to speak in broad, sweeping terms.</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2009/10/11/thinking-about-a-step-2-for-context-slash-specification-style-testing/">Thinking about a &#8220;Step 2&#8221; for Context/Specification-style testing</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2009-10-11T12:13:42-07:00" pubdate data-updated="true"><i class="icon-calendar"></i> Oct 11<span>th</span>, 2009</time>
+    
+
+
+
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>This is a post about the evolution of my thinking and practice regarding Context/Specification-style test composition. I&rsquo;d like to review my understanding and approach to it over time and some of the frictions that I encountered after the initial re-alignment of thinking that occurs when changing gears to this style of TDD, as opposed to more orthodox varieties. There may be nothing new here for some practitioners of TDD (if that&rsquo;s you: sorry for wasting your time); but for others who have made/are making the same mistakes as I or have some kind of &ldquo;itch&rdquo; in the back of their mind about how their tests just don&rsquo;t quite &ldquo;work&rdquo; with how they&rsquo;re currently writing them, perhaps this will help.</p>
+
+<p>I by no means claim to be an expert of any sort on BDD or test-first development in general. That being said, I consider myself a pretty active practitioner of these techniques (I fall into the &ldquo;<a href="http://www.code-magazine.com/Article.aspx?quickid=0805061">Context/Specification</a> aka &#8220;Bellware-Driven-Development&rdquo; camp).</p>
+
+<p>Some time back, I received an email, asking me a question about some missing code in a pastebin I linked to in a mailing list discussion (<a href="http://www.mail-archive.com/altnetseattle@googlegroups.com/msg00486.html">here</a>, if you&rsquo;re interested). Sadly, the code is lost to the ages, but going back and reading that thread got me thinking about what the discussion was about and what I had learned since then.</p>
+
+<p>The thread itself was about the value of <a href="http://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY</a> when composing tests in a Context/Specification style, specifically how adhering to DRY might lead one to create deep, nested class hierarchies of Contexts which serve the purpose of making test composition more convenient for the programmer, but having the consequence of obfuscating the intention of said Contexts and Specifications. Ayende has written a bit on this topic recently <a href="http://ayende.com/Blog/archive/2009/09/29/scenario-driven-tests.aspx">here</a>. Specifically:</p>
+
+<blockquote><p>One of the main problem[s] with unit testing is that we are torn between competing forces. One is the usual drive for abstraction and eradication of duplication, the second is clarity of the test itself.</p></blockquote>
+
+<h3>An example domain</h3>
+
+<p>Before we look at some code to illustrate this, let&rsquo;s talk a bit about the domain used for this exercise. For now, we&rsquo;ll rely on a very generic, very shallow Bank application. Briefly, it consists of:</p>
+
+<ul>
+<li>A <code>Customer</code>, who has a collection of <code>Accounts</code>.</li>
+<li>The <code>Accounts</code> are broken down into two types:</li>
+<li><code>CheckingAccounts</code></li>
+<li><code>SavingsAccounts</code></li>
+</ul>
+
+
+<p>Additionally, here are some business rules:</p>
+
+<ul>
+<li>When a new <code>Customer</code> is created, they must have at least one <code>Account</code>.</li>
+<li>Don&rsquo;t allow debits from <code>Accounts</code> that send the balance into negative territory.</li>
+</ul>
+
+
+<p>Granted, in the real world, business rules aren&rsquo;t this black and white. But they&rsquo;ll do.</p>
+
+<p>Based on this, we have enough to get started with some specifications. For the purposes of this post, I&rsquo;ll be using C# tests written with <a href="http://github.com/machine/machine.specifications">MSpec</a>. If you&rsquo;re not familiar with MSpec, I can&rsquo;t help you.</p>
+
+<h3>Reasons to use inheritance when composing tests</h3>
+
+<p>Broadly speaking, there are two reasons to use parent/child relationships when composing tests:</p>
+
+<ol>
+<li>You have &ldquo;administrative&rdquo; concerns, such as configuring dependencies for some service under test (maybe setting up a DB session for an Integration test or generating mocks/stubs for something tested in isolation).</li>
+<li>You want to aggregate context, such as &ldquo;any context that inherits from this class is testing an entity/sccenario that is configured/modeled in some specific fashion&rdquo;.</li>
+</ol>
+
+
+<p>At the end of the day, though, both of these concerns are about code reuse and not having to repeat yourself with cut&#8217;n&#8217;pastes of mundane, boiler plate code.</p>
+
+<p>Some code to illustrate the first item:</p>
+
+<pre><code>public class CustomerRepositoryThatIsStubbed
+    {
+      Establish context = () =&amp;gt;
+        customerRepository = Mocks.GenerateStub&amp;lt;ICustomerRepository&amp;gt;();
+
+      protected static ICustomerRepository customerRepository;
+    }
+</code></pre>
+
+<p>In the above example, the class would serve up a stubbed out <code>ICustomerRepository</code> that we could use for other services that may depend on it. This class could be used in any number of &lsquo;child&rsquo; Contexts that actually provide Specifications in order to get some predefined functionality.</p>
+
+<p>You can more generally use these kinds of classes to aggregate a group of Specs, perhaps by domain concern (e.g. <code>CustomerWithdrawalSpecs</code>, <code>CustomerRepositoryQueryingSpecs</code>, etc).</p>
+
+<p>Which leads into the second point noted above:</p>
+
+<pre><code>  public class new_customer_with_a_checking_account_with_a_hundred_dollar_balance
+    {
+      Establish context = () =&amp;gt;
+      {
+        var account = new CheckingAccount(100.0m);
+        customerWithHundredDollarsInCheckingAccount = Customer.NewWithAccounts(new [] {account});
+      };
+
+      protected static Customer customerWithHundredDollarsInCheckingAccount;
+    }
+
+    public class when_making_a_withdrawl_from_an_account_that_does_not_exceed_the_accounts_balance :
+      new_customer_with_a_checking_account_with_a_hundred_dollar_balance
+    {
+      Establish context = () =&amp;gt;
+        debitThatDoesNotExceedCustomersBalance = new Debit(-60.0m);
+
+      Because of = () =&amp;gt;
+        customerWithHundredDollarsInCheckingAccount
+          .Accounts.Where(x=&amp;gt;x.IsChecking).Single() // this could go away
+          .ProcessTransaction(debitThatDoesNotExceedCustomersBalance);
+
+      It should_withdraw_the_amount_from_the_customers_account = () =&amp;gt;
+        customerWithHundredDollarsInCheckingAccount
+          .Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          .Balance.ShouldEqual(40.0m);
+
+      static Debit debitThatDoesNotExceedCustomersBalance;
+    }
+
+    public class when_making_a_withdrawl_from_an_account_that_does_not_exceed_the_accounts_balance :
+      new_customer_with_a_checking_account_with_a_hundred_dollar_balance
+    {
+      Establish context = () =&amp;gt;
+        debitThatDoesNotExceedCustomersBalance = new Debit(-60.0m);
+
+      Because of = () =&amp;gt;
+        exception = Catch.Exception(() =&amp;gt;
+          customerWithHundredDollarsInCheckingAccount
+            .Accounts.Where(x=&amp;gt;x.IsChecking).Single() // this could go away
+            .ProcessTransaction(debitThatExceedsCustomersBalance);
+
+      It should_cause_an_error = () =&amp;gt;
+        exception.ShouldNotBeNull();
+
+      It should_not_withdraw_the_amount_from_the_customers_account = () =&amp;gt;
+        customerWithHundredDollarsInCheckingAccount
+          .Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          .Balance.ShouldEqual(100.0m);
+
+      static Debit debitThatExceedsCustomersBalance;
+      static Exception exception
+    }
+</code></pre>
+
+<p>These three classes all deal with building out actual Context for use in defining our Specifications. The first class sets up a general Use Case or &lsquo;shape&rsquo; for the behavior we want to verify and the latter classes make use of it for their own ends. That being said, there is some friction.</p>
+
+<h3>Keep the good and lose the bad</h3>
+
+<p>At first glance, there doesn&rsquo;t seem to be too much wrong with that approach, from an intention-revealing perspective (which ought to be foremost in your mind when writing these tests). The base class for the latter tests is right there, if you want to see what it does and its name gives a pretty good indicator of what it does, already.</p>
+
+<p>Soon or later, though, you may run up against a wall where this approach doesn&rsquo;t scale. What if you deeply nest your Contexts?</p>
+
+<pre><code>  public class new_customer_with_a_checking_account_with_a_hundred_dollar_balance
+    {
+      Establish context = () =&amp;gt;
+      {
+        var account = new CheckingAccount(100.0m);
+        customerWithHundredDollarsInCheckingAccount = Customer.NewWithAccounts(new [] {account});
+      };
+
+      protected static Customer customerWithHundredDollarsInCheckingAccount = Customer.NewWithAccounts(new [] {account});
+      };
+
+      protected static Customer customerWithHundredDollarsInCheckingAccount;
+    }
+
+    public class and_another_customer_with_a_zero_dollar_balance :
+      new_customer_with_a_checking_account_with_a_hundred_dollar_balance
+    {
+      Establish context = () =&amp;gt;
+      {
+        var account = new CheckingAccount(0.0m);
+        customerWithZeroBalance = Customer.NewWithAccounts(new [] {account});
+      };
+
+      protected static Customer customerWithZeroBalance;
+    }
+
+    public class when_transfering_funds_between_two_accounts :
+      and_another_customer_with_a_zero_dollar_balance
+    {
+      Because of = () =&amp;gt;
+        customerWithZeroBalance.TransferFundsFrom(
+          customerWithHundredDollarsInCheckingAccount.Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          , 60.0m);
+
+      It should_add_the_funds_to_the_destination_account = () =&amp;gt;
+        customerWithZeroBalance.Accounts.Where(x=&amp;gt;x.IsChecking).Single().Balance.ShouldEqual(60.0m);
+
+      It should_remove_the_funds_from_the_source_account = () =&amp;gt;
+        customerWithHundredDollarsInCheckingAccount.Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          .Balance.ShouldEqual(40.0m);
+    }
+</code></pre>
+
+<p>In this case, the third class (the one that actually has Specifications) only shows its relationship to its immediate parent. If these classes were split up, for whatever reason, amongst different source code files then it would become problematic to be able to easilly demonstrate what the intention was. For me, this approach was appealing because it seemed clever, at the time. But, after going down the path a ways, it didn&rsquo;t work out.</p>
+
+<p>Additionally, having several base classes that set up specific edge cases for how scenarios are represented, data-wise, is kind of putting the cart before the horse. In Context/Specification testing, you want the Contexts themselves to be just as important, if not moreso, than the Specs. It should plainly and clearly spell out &ldquo;Because stuff is configured in such a fashion and we did something just so..&rdquo;, we get a result that we expect in our Specifications.</p>
+
+<pre><code>  public class when_transfering_funds_between_two_accounts
+    {
+
+      Establish context = () =&amp;gt;
+      {
+        var zeroBalanceAccount = new CheckingAccount(0.0m);
+        customerWithZeroBalance = Customer.NewWithAccount(zeroBalanceAccount);
+        var hundredDollarsAccount = new CheckingAccount(100.0m);
+        customerWithHundredDollarsInCheckingAccount = Customer.NewWithAccount(hundredDollarsAccount);
+      };
+
+      Because of = () =&amp;gt;
+        customerWithZeroBalance.TransferFundsFrom(
+          customerWithHundredDollarsInCheckingAccount.Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          , 60.0m);
+
+      It should_add_the_funds_to_the_destination_account = () =&amp;gt;
+        customerWithZeroBalance.Accounts.Where(x=&amp;gt;x.IsChecking).Single().Balance.ShouldEqual(60.0m);
+
+      It should_remove_the_funds_from_the_source_account = () =&amp;gt;
+        customerWithHundredDollarsInCheckingAccount.Accounts.Where(x=&amp;gt;x.IsChecking).Single()
+          .Balance.ShouldEqual(40.0m);
+    }
+</code></pre>
+
+<p>Here, we&rsquo;ve just taken the stuff that went in the superclass Contexts and put them into the class that has the Specifications, which pretty much puts you back at square one. The reason things like using inheritance to contain Context is appealing is because, in the above example, the test composer has to repetitively do things like create objects for the System/Behavior Under Test, wasting precious keystrokes.</p>
+
+<p>So how to do we mitigate this annoyance, thus acheiving the following:</p>
+
+<ol>
+<li>Foremost, the Contexts reveal the intention and provide meaningful information on what behavior, exactly, is being verified.</li>
+<li>Reduce repetition as much as possible while still satisfying the previous point.</li>
+</ol>
+
+
+<p>Sharing information about lessons learned at this &ldquo;stage&rdquo; of competency for Context/Specification testing is where the community is, right now. Aaron Jensen blogged recently on the topic <a href="http://codebetter.com/blogs/aaron.jensen/archive/2009/10/05/a-recent-conversation-about-mspec-practices.aspx">here</a> (disclosure: he used to be my boss). Much of the post is the body of an email that he wrote replying to someone&rsquo;s question about Context/Specification testing issues. Speaking about base classes that aggregate context, he said:</p>
+
+<blockquote><p>&ldquo;&hellip;I don&rsquo;t like it now. I much more prefer to just have a base class that contains any utility/meaningless cruft my specs have. You also seem to have taken this to a bit of an extreme. Would you make a regular base class just to create a single instance variable and set it to null in the constructor? Probably not. Same stuff applies here. There&rsquo;s no value in creating base classes unless they provide value. There&rsquo;s no naming or understanding benefit. As a matter of fact, they <em>hinder</em> understanding more than anything.&rdquo;</p></blockquote>
+
+<p>The bit about pushing utility methods into base classes is a pretty valid approach to reducing keystrokes in tests while retaining an intention-revealing value to them.</p>
+
+<p>Consider the above example where we do all the setup in a single Context, but with the &ldquo;uglyness&rdquo; of the repatition. What if it were reworked to look more like:</p>
+
+<pre><code>  public class CustomerAccountTransferSpecs
+    {
+      public static Customer CustomerWithStartingBalanceOf(decimal startingBalance)
+      {
+        var account = new CheckingAccount(startingBalance);
+        return Customer.NewWithAccount(account);
+      }
+    }
+
+    public class when_transfering_funds_between_two_accounts : CustomerAccountTransferSpecs
+    {
+      Establish context = () =&amp;gt;
+      {
+        customerWithZeroBalance = CustomerWithStartingBalanceOf(0.0m);
+        customerWithHundredDollarsInCheckingAccount = CustomerWithStartingBalanceOf(100.0m);
+      };
+      ....
+    }
+</code></pre>
+
+<p>Aside from some (possible) nitpicks regarding what kind of account a customer gets when using the helper method, this approach provides a net benefit in terms of revealing intent and keystroke reduction. From here, the direction to push is towards stream-lining this process. Once again, Aaron Jensen has done some blogging on the <a href="http://blog.eleutian.com/2007/09/29/FluentFixtures.aspx">topic</a>. Also, Greg Young <a href="http://codebetter.com/blogs/gregyoung/archive/2008/04/15/dddd-5-messages-have-fluent-builders.aspx">chimes in</a> with a similar approach for an albeit different set of circumstances.</p>
+
+<h3>Conclusion</h3>
+
+<p>A few things to remember:</p>
+
+<ol>
+<li>Using inheritance to DRY your way out of having to re-specify context is the wrong approach. &ldquo;Context explosion&rdquo; is something that you have to learn to deal with, but this approach will only serve to obfuscate your context, longterm. If you want to trim your keystrokes, instead consider the following:</li>
+<li>Having to re-specify context over and over <em>is</em> a code smell. So think about the best, most intention-revealing way to present that context-building <em>for you</em> and push it into some helper methods/fluent fixtures/etc instead of using rigid class hierarchies to represent that information.</li>
+</ol>
+
+
+<p>Good luck and happy testing</p>
+
+
+  </article>
+  <hr>
+
+  
+  <article class="listing">
+    <header>
+  
+  <h1 class="beta">
+    <a href="/blog/2009/08/17/hello-world-github-blog-post/">Hello world GitHub blog post</a>
+  </h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2009-08-17T12:09:32-07:00" pubdate data-updated="true"><i class="icon-calendar"></i> Aug 17<span>th</span>, 2009</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/meta/">meta</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>Wow, five days short of a whole year since my last post on my blogger.com blog. I&rsquo;ve kind of had the idea in my head for some time to move my blog to GitHub. I may lose some bells and whistles, but I gain an easier way (in my opinion) to create and publish posts (and plus, markdown > *).</p>
+
+<p>Anywho, hopefully I&rsquo;ll post more, since I don&rsquo;t have any shortage of ideas kicking around that I&rsquo;d like to share.</p>
+
+<p>And now, some code to see how highlighting looks:</p>
+
+<pre><code>import System
+import System.Collections.Generic
+
+public class Foo(Bar):
+  public def constructor():
+    pass
+
+  public def Baz(input as string) as string:
+    return 'Foobie '+input
+</code></pre>
+
+<p>Here&rsquo;s to many more!</p>
+
+
+  </article>
+  <hr>
+
         
         </div>
         
@@ -73,22 +1397,61 @@
   <ul class="unstyled">
     
     
+    <li><a class="github" target="_blank" href="//github.com/olsonjeffery"><i class="icon-github"></i> Github</a></li>
     
     
     
     
     
-    
-    
+    <li><a class="twitter" target="_blank" href="//twitter.com/olsonjeffery"><i class="icon-twitter"></i> Twitter</a></li>
     
   </ul>
 </section>
+
 
 
   <section id="recent-posts" class="aside-module grid__item one-whole lap-one-half">
   <h1 class="title delta">Recent Posts</h1>
   <ul class="divided">
     
+      <li class="post">
+        <a href="/blog/2011/02/01/deployment-with-openwrap/">Deployment with OpenWrap</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/">An Introduction to machine.javascript part 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/17/an-introduction-to-machine-dot-javascript/">An Introduction to machine.javascript</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/01/15/i-am-alt-dot-net-pursefight/">I am Alt.Net Pursefight</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2009/11/06/saber-a-newspeak-web-framework/">Saber: A Newspeak web framework</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section id="github-repos" class="aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">
+    GitHub Repos
+    
+    <small class="pull-right">
+      <a class="btn" href="//github.com/olsonjeffery" title="@olsonjeffery on GitHub" target="_blank">
+        <i class="icon-external-link"></i>
+      </a>
+    </small>
+    
+  </h1>
+  <ul id="gh_repos" class="divided">
+    <li class="loading">
+      <i class="icon-spinner icon-spin"></i>
+    </li>
   </ul>
 </section>
 
@@ -107,7 +1470,7 @@
   <div class="grid">
     <div class="grid__item">
       <p class="copyright">
-  All content by Your Name and licenced under <a href="//creativecommons.org/licenses/by-nc-sa/3.0/ie/">Creative Commons</a>.<br>
+  All content by Jeff Olson and licenced under <a href="//creativecommons.org/licenses/by-nc-sa/3.0/ie/">Creative Commons</a>.<br>
   Code under <a href="//github.com/coogie/oscailte/blob/master/README.md">MIT Licence</a>.
 </p>
     </div>
@@ -129,6 +1492,26 @@
 
 
 
+
+<script>
+  $(document).ready(function(){
+    if (!window.jXHR){
+      var jxhr = document.createElement('script');
+      jxhr.type = 'text/javascript';
+      jxhr.src = '/javascripts/libs/jXHR.js';
+      var s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(jxhr, s);
+    }
+
+    github.showRepos({
+      user: 'olsonjeffery',
+      count: 5,
+      skip_forks: true,
+      target: '#gh_repos'
+    });
+  });
+</script>
+<script src="/javascripts/github.js"></script>
 
 
 

@@ -1,0 +1,325 @@
+
+
+<!doctype html>
+  <!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+  <!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+  <!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+  <!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Saber: A Newspeak web framework - programmer, etc</title>
+    <meta name="author" content="Jeff Olson">
+    
+    <meta name="description" content="Saber: A Newspeak web framework Nov 6th, 2009 newspeak web I&rsquo;m very pleased to announce the creation of yet another web framework, although it &hellip;">
+    
+    <meta name="viewport" content="width=device-width">
+    
+    <link rel="canonical" href="http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework">
+    <link href="/favicon.png" rel="icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet">
+    <link href="//atom.xml" rel="alternate" title="programmer, etc" type="application/atom+xml">
+  </head>
+
+
+  <body >
+
+    <header>
+      <div class="grid-wrapper">
+  <div class="grid">
+
+    <div class="grid__item two-fifths lap-four-sixths palm-one-whole">
+  <a href="/" class="site-title">programmer, etc</a>
+</div>
+
+<div class="grid__item three-fifths lap-two-sixths palm-one-whole">
+  <nav>
+    <input type="checkbox" id="toggle">
+<label for="toggle" class="toggle" data-open="Main Menu" data-close="Close Menu"></label>
+<ul class="menu pull-right">
+  <li><a href="/">Home</a></li>
+  <li><a href="/blog/">Blog</a></li>
+</ul>
+  </nav>
+</div>
+
+
+  </div>
+</div>
+    </header>
+
+    
+
+    <div class="grid-wrapper">
+      <div class="grid grid-center">
+        
+        <div class="grid__item two-thirds lap-one-whole palm-one-whole">
+        
+
+          <article class="post">
+  <header>
+  
+  <h1 class="title indent">Saber: A Newspeak web framework</h1>
+  
+
+  
+  <div class="meta clearfix">
+    
+
+
+
+
+
+
+
+
+  
+
+
+<time class="pull-left" datetime="2009-11-06T11:50:39-08:00" pubdate data-updated="true"><i class="icon-calendar"></i> Nov 6<span>th</span>, 2009</time>
+    
+
+
+
+  
+  <div class="pull-left">
+    <i class="icon-tags"></i>
+    <ul class="tags unstyled">
+    
+      <li><a href="/blog/categories/newspeak/">newspeak</a></li>
+    
+      <li><a href="/blog/categories/web/">web</a></li>
+    
+    </ul>
+  </div>
+  
+
+    
+  </div>
+  
+</header>
+
+
+
+
+  <p>I&rsquo;m very pleased to announce the creation of yet another web framework, although it is the first (that I know of) for the <a href="http://newspeaklanguage.org">Newspeak</a> platform. It started out as an intellectual exercise to explore Newspeak and some of it&rsquo;s reflective capabilities and idiosyncracies (specifically the pervasive class nesting). It was a very interesting and enjoyable development experience, to be sure (although it wasn&rsquo;t without its own gotcha moments and difficulties). Prior to this project, I played with Newspeak a bit at the time of the first release in late February. Besides that, my only experience with this style of development is some recreational programming with Squeak (I worked through about two-thirds of the <a href="http://squeak.preeminent.org/tut2007/html/">laser-game</a> tutorial). Newspeak is a very young, yet capable and robust platform and I am more than impressed with what I&rsquo;ve encountered so far, although a lot of its much-heralded functionality has yet to be implemented. All in good time, I suppose.</p>
+
+<h3>Saber and web frameworks in a historical context</h3>
+
+<p>Saber is a web application framework that takes a somewhat different approach to web application development and modelling from other, more popular frameworks that you may have heard of. In a way, it may be a sort of counter-evolution in terms of conceptualization of how web frameworks have been structured since Rails came on the scene.</p>
+
+<p>In the <a href="http://en.wikipedia.org/wiki/Web_application#History">Bad Old Days</a>, HTTP was used exclusively as a static content presentation protocol, where URL requests typically mapped to documents in a folder under the wwwroot of some site. When server-side technology solutions (ASP, Java Servlets, CGI, etc) became more common, it ended up being some script/code handling requests, which may or may not have been routed to a script corresponding to the URL somehow. But, with the rise of Rails and the slew of other HTTP-based &ldquo;MVC&rdquo; frameworks that have followed in its wake, we now have a popular paradigm of Controllers and Actions and the basic request-handling conventions that they bring to mind. When the need for more taxonomy beyond Controller/Action became perceived as necessary, we got things like Areas or custom routing schemes to match a request for some URL to a given action, perhaps with some parameter mapping to give the whole thing a more RESTful feel.</p>
+
+<p>The pitfalls of the Controller/Action modelling pattern for web frameworks is something that isn&rsquo;t within the scope of the topic of this post, but it suffices to say that it has become enough of a nuisance after a while for any non-trivial example application that several people have come up with alternative approaches. Foremost of these in my mind is <a href="http://www.sinatrarb.com">Sinatra</a>, an excellent framework that models endpoints as &ldquo;routes&rdquo; (that is, some HTTP Method/URL pair that can be matched by a request) and a block of code to handle that request when the route is matched. I have experimented a bit with porting this approach to the ASP.NET world (the results of which can be found <a href="http://github.com/olsonjeffery/mercury">here</a>). This approach is present in several frameworks as a &lsquo;first-class&rsquo; alternative to the Controller/Action structure so popular elsewhere (from the direct url->handler WSGI mapping in Google AppEngine&rsquo;s <a href="http://code.google.com/appengine/docs/python/gettingstarted/usingwebapp.html">webapp</a> framework to <a href="http://trac.caffeine-it.com/openrasta">OpenRasta</a>).</p>
+
+<p>Saber subscribes to the above request/routing-centric viewpoint, but with a twist. From the Saber README:</p>
+
+<blockquote><p>Essentially: Instead of artificially aggregating endpoints into a Controller/Action hierarchy, Saber lets the structure of the routing handlers becoming the organizing taxonomy for the application.</p></blockquote>
+
+<p>To further entertain this MVC straw-man, most stereotypical MVC web frameworks reveal the intent and function of their endpoint handlers by aggregating them as actions within controllers. In some static frameworks (in Java or .NET, mostly), the aggregation is also an administrative concern for convenience when using an Inversion-of-Control scheme, leading to kludgey groupings of functionality that don&rsquo;t scale well, in my experience.</p>
+
+<p>So, how does Saber acheive this taxonomy? By using a fundamental feature of Newspeak: pervasive class nesting. In Newspeak, there is no global namespace. Practically, this means that every &ldquo;top-level&rdquo; class itself acts as a module. Within this top-level class, you can nest other classes. It seemed natural, to me, to use this approach to model a web site&rsquo;s request handlers, with a class called <code>foo</code> handling requests to <code>/foo</code>, and a class nested within that one called <code>bar</code> handling requests to <code>/foo/bar</code>, etc. Each of these &ldquo;Handler&rdquo; classes implements one or more methods that each correspond to an HTTP method (<code>onGet:</code> for GET, <code>onPost:</code> for POST, etc). These Handler methods are themselves the actual endpoints for a given request.</p>
+
+<p>Saber also includes a &ldquo;toy&rdquo; view rendering system, [creatively] named SaberView.</p>
+
+<h3>So what does this look like?</h3>
+
+<p>At the highest level, you have a &ldquo;site&rdquo; class that acts as a model/container for your site&rsquo;s definition. This site contains a few administrative things (like the name of the site for the httpd, the port, etc). Besides that, it must include a nested class called SiteRoot that inherits from SaberHandler (which is the basic route Handler class in Saber). That class itself will match on requests to the root of a site. From there, you can nest classes that match to &ldquo;nodes&rdquo; in a route request. For example:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+</code></pre>
+
+<p>This would be an example of a taxonomy of classes that would have handlers that could potentially match requests for <code>/</code>, <code>/foo</code>, <code>/baz</code> or <code>/baz/bar</code>. Once again, a handler will only be called if it implements a method corresponding to the HTTP method of a request. So if <code>/baz/bar</code> only implements <code>onPost:</code>, then a GET request to <code>/baz/bar</code> will return a 404.</p>
+
+<h3>Specialized handlers</h3>
+
+<p>But vanilla route handling isn&rsquo;t all that Saber does. It handles a number of &ldquo;must have&rdquo; features for routing-centric web frameworks, including: a NotFound handler scheme, &lsquo;parameter&rsquo; handlers and static file serving.</p>
+
+<h4>Not found handlers</h4>
+
+<p>By default, Saber will return a generic 404 response if a request&rsquo;s url cannot be matched to a handler. Optionally, you can specify a special handler that inherits from <code>SaberNotFoundHandler</code> that will be processed when a request cannot be matched to an existing Handler. Otherwise, it works just like any other handler with the <code>onGet:</code>, <code>onPost:</code>, etc.</p>
+
+<h4>Parameter handlers</h4>
+
+<p>Saber allows specifying a Handler nested within another one, inheriting from <code>SaberParameterHandler</code> to be used as a special-case parameter matching handler. That is, given the following taxonomy:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+    - nameParam
+</code></pre>
+
+<p>In this case, the <code>nameParam</code> class is a class that inherits from <code>SaberParameterHandler</code>. What this means is that, at request time, if the request url doesn&rsquo;t match to any of the other &lsquo;sibling&rsquo; handlers at the same level as the parameter handler, then the parameter handler itself will be matched. This way, it could be used as a catch-all and won&rsquo;t interfere with handlers at the same level. This means that requests for <code>/baz/bar</code> would match to the <code>bar</code> class, but requests for <code>/baz/john</code> or somesuch would match to the <code>nameParam</code> handler, since there is no other handler that would match the request, otherwise. Also, the value of the request (in the case of the previous example &lsquo;john&rsquo;) will be stored within the requests query fields with <em>the name of the handler</em> as the key.</p>
+
+<p>Naturally, this means that only a single <code>SaberParameterHandler</code>-inheriting class can be nested within a group of sibling handlers. Besides the above issues, the handler behaves exactly like a normal handler, including allowing other handlers to be nested within it.</p>
+
+<h4>Serving static content</h4>
+
+<p>And what web framework would be complete without a means with which to serve up CSS, JavaScript, etc? Saber allows for classes that inherit from <code>SaberStaticFileHandler</code> that are nested with the SiteRoot to be mapped to physical locations on the filesystem (exposed by overriding the <code>documentRoot</code> method on the class) and mapped to the class&#8217; name. So a class inheriting from <code>SaberStaticFileHandler</code> named <code>static</code> and pointing to a location on the filesystem would be matched. A request for <code>/static/style.css</code> would be matched to whatever path was specified in the <code>documentRoot</code> with <code>style.css</code> appended to the end.</p>
+
+<h3>What&rsquo;s not-so-great about Saber, right now?</h3>
+
+<p>First and foremost: I&rsquo;m not terribly happy with the rather &ldquo;minimalistic&rdquo; view engine. It has two very useful features (value substition and block inheritance), but that&rsquo;s it. I, personally, am a very big fan of pushing as much work onto the client javascript as possible, using server-side views to deliver JSON and that&rsquo;s it, if possible. But there are always some situations where it makes sense to just do the rendering on the server (like some non-interactive reporting that won&rsquo;t feature any AJAX callbacks after the initial request). With this in mind, a slighlty more robust solution with conditionals, looping and more sophisticated value substitution (that allows passing in actual objects instead of just strings) would be nice, longterm.</p>
+
+<p>Also, Saber is currently tightly coupled to the underlying platform for the Newspeak environment: Squeak. This isn&rsquo;t a bad thing necessarily, but eventually Newspeak will move beyond this and Saber currently uses HttpService, which is used in <a href="http://www.seaside.st/">Seaside</a> (not to mention several collection primitives, HttpRequest/Response, etc). I&rsquo;m glad that the Squeak libraries are there, as they allowed me to cut some corners and concentrate on features instead of low-level plumbing, but these things will have to be replaced longterm. Whether or not Saber survives long enough to see that day is another question.</p>
+
+<p>Another nagging issue is that Saber doesn&rsquo;t support multiple sites in the same instance using the HTTP 1.1 host header. This is supported in the underlying httpd from Squeak, but isn&rsquo;t something that I&rsquo;ve gotten around to implementing.</p>
+
+<p>Overall, I tried to keep the scope of the project somewhat narrow (I&rsquo;ve only been working on it for a few weeks and I&rsquo;m quite pleased with the progress I&rsquo;ve made). I mostly wanted to get the project out &ldquo;into the wild&rdquo; in order to get some feedback on the viability of this approach. I wouldn&rsquo;t really recommend the nested class approach other platforms like Java or .NET, even though they support this feature. Alot of what makes nested classes appealing in Newspeak is that it&rsquo;s a first-class concern and is built into the IDE, so there&rsquo;s some tooling to reduce the friction. I wouldn&rsquo;t say that this same tooling/mindset exists for other platforms.</p>
+
+<h3>How to see Saber in action</h3>
+
+<p>The README.md in the <a href="http://github.com/olsonjeffery/saber">Saber repository</a> has some pointers on how to get started, should you be so inclined.</p>
+
+<h3>Conclusion</h3>
+
+<p>I&rsquo;d like to give a big thanks to the motivating people behind this project: The Newspeak team, for conceiving of this awesome vision and delivering a working prototype for people like me to hack around with. I wish this project the best and hope to find a way to get involved with helping move things forward, longterm. Also, all of the people who aren&rsquo;t satisfied the state of things in terms of software abstractions and patterns in general. Whether you&rsquo;re a pathological tinkerer like me or a more pragmatically-minded person, it&rsquo;s the unreasonable nerd who isn&rsquo;t satisfied with the reigning paradigm that actually moves the ball forward.</p>
+
+<p>Please note that I don&rsquo;t actually consider Saber to be a part of the canon of earth-shattering software innovations or theory; I just like to speak in broad, sweeping terms.</p>
+
+
+</article>
+
+
+        
+        </div>
+        
+        
+        <aside id="sidebar" class="grid__item one-third lap-one-whole palm-one-whole">
+          <div class="grid">
+
+  
+<section class="social aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">
+    Follow me!
+  </h1>
+  <ul class="unstyled">
+    
+    
+    <li><a class="github" target="_blank" href="//github.com/olsonjeffery"><i class="icon-github"></i> Github</a></li>
+    
+    
+    
+    
+    
+    <li><a class="twitter" target="_blank" href="//twitter.com/olsonjeffery"><i class="icon-twitter"></i> Twitter</a></li>
+    
+  </ul>
+</section>
+
+
+
+  <section id="recent-posts" class="aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">Recent Posts</h1>
+  <ul class="divided">
+    
+      <li class="post">
+        <a href="/blog/2011/02/01/deployment-with-openwrap/">Deployment with OpenWrap</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/">An Introduction to machine.javascript part 2</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/02/17/an-introduction-to-machine-dot-javascript/">An Introduction to machine.javascript</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2010/01/15/i-am-alt-dot-net-pursefight/">I am Alt.Net Pursefight</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2009/11/06/saber-a-newspeak-web-framework/">Saber: A Newspeak web framework</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section id="github-repos" class="aside-module grid__item one-whole lap-one-half">
+  <h1 class="title delta">
+    GitHub Repos
+    
+    <small class="pull-right">
+      <a class="btn" href="//github.com/olsonjeffery" title="@olsonjeffery on GitHub" target="_blank">
+        <i class="icon-external-link"></i>
+      </a>
+    </small>
+    
+  </h1>
+  <ul id="gh_repos" class="divided">
+    <li class="loading">
+      <i class="icon-spinner icon-spin"></i>
+    </li>
+  </ul>
+</section>
+
+
+
+
+</div>
+
+        </aside>
+        
+      </div>
+    </div>
+    
+    <footer>
+      <div class="grid-wrapper">
+  <div class="grid">
+    <div class="grid__item">
+      <p class="copyright">
+  All content by Jeff Olson and licenced under <a href="//creativecommons.org/licenses/by-nc-sa/3.0/ie/">Creative Commons</a>.<br>
+  Code under <a href="//github.com/coogie/oscailte/blob/master/README.md">MIT Licence</a>.
+</p>
+    </div>
+  </div>
+</div>
+
+    </footer>
+
+    <!--[if lt IE 7]>
+      <p class="chromeframe">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">activate Google Chrome Frame</a> to improve your experience.</p>
+    <![endif]-->
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script src="//crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+<script defer src="/javascripts/octopress.js"></script>
+
+
+
+
+
+
+
+<script>
+  $(document).ready(function(){
+    if (!window.jXHR){
+      var jxhr = document.createElement('script');
+      jxhr.type = 'text/javascript';
+      jxhr.src = '/javascripts/libs/jXHR.js';
+      var s = document.getElementsByTagName('script')[0];
+      s.parentNode.insertBefore(jxhr, s);
+    }
+
+    github.showRepos({
+      user: 'olsonjeffery',
+      count: 5,
+      skip_forks: true,
+      target: '#gh_repos'
+    });
+  });
+</script>
+<script src="/javascripts/github.js"></script>
+
+
+
+
+
+
+  </body>
+</html>

@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: web | programmer, etc]]></title>
+  <link href="http://olsonjeffery.github.io/blog/categories/web/atom.xml" rel="self"/>
+  <link href="http://olsonjeffery.github.io/"/>
+  <updated>2014-02-26T12:54:41-08:00</updated>
+  <id>http://olsonjeffery.github.io/</id>
+  <author>
+    <name><![CDATA[Jeff Olson]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[An Introduction to machine.javascript part 2]]></title>
+    <link href="http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/"/>
+    <updated>2010-02-18T12:28:51-08:00</updated>
+    <id>http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2</id>
+    <content type="html"><![CDATA[<p>This post is a continuation from <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, which introduced the ideas of <code>machine-javascript</code>, namely the script loader and a simple example, showing how a <code>HelloWorldController</code> was instantiated and attached to the page. What was not explored, however, was what the <code>HelloWorldController</code> actually looks like and how it works. That is the topic of this post.</p>
+
+<h3>Let&rsquo;s Dive Right In!</h3>
+
+<p>Here is the content of <code>HelloWorldController.js</code>, loaded into our page in the example shown in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of the series:</p>
+
+<pre><code>    include('jquery.js');
+    include('machine-controller.js');
+    include(function() {
+      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+
+      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+
+      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+
+      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+    });
+</code></pre>
+
+<p>Okay! A lot to take in there. Let&rsquo;s start with the <code>include()</code>s at the top of the file.</p>
+
+<pre><code>    include('machine-controller.js');
+    include(function() {
+      ...
+    });
+</code></pre>
+
+<p>As noted in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, calls to <code>include()</code> are never nested within the scope of a single file, but always occur serially. The first call is to load up <code>machine-controller.js</code>, upon which this file is dependant. If <code>HelloWorldController</code> were dependant upon a &ldquo;ViewRenderer&rdquo; (which is discussed further down), it would also be included at this point. Finally, the actual body of the script is contained within an <code>include()</code>. This is a convention that must be adherred to in order to leverage the utility of <code>machine-includer.js</code>. Strictly speaking, <code>machine-controller.js</code> takes no dependency upon <code>machine-includer.js</code> and you could easily use it with another script loader or no loader at all, but for the purposes of this example we are going to use it.</p>
+
+<pre><code>      var global = this;
+
+      var viewLeft = '&lt;div&gt;&lt;a id="clicker" href="#"&gt;Hello world!&lt;/a&gt; I have been clicked ';
+      var viewRight= ' times.&lt;/div&gt;';
+</code></pre>
+
+<p>At this point, we&rsquo;re just setting up some variables that will be used in the course of defining <code>HelloWorldController</code>. I, by habit, typically assign the top-level <code>this</code> in a given script to <code>global</code>. The next two variables, <code>viewLeft</code> and <code>viewRight</code> are two chunks of text that will make up the &ldquo;view&rdquo; rendered by <code>HelloWorldController</code> (that is, the markup that it attaches to the DOM). This approach is not-at-all optimal for general use, but is merely meant to demonstrate the basic functionality of <code>setView()</code>, which will be covered in-depth below.</p>
+
+<pre><code>      global.HelloWorldController = function() {
+        this.init(); // kicks off Machine.Controller's internal setup
+                     // .. always call this first.
+        this.clickCount = 0;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.addAction('click', '#clicker', this.onClickerDivClick);
+      };
+</code></pre>
+
+<p>This chunk of JavaScript is the declaration of <code>HelloWorldController</code>&rsquo;s constructor/intializer and is where the majority of <code>Machine.Controller</code>-derived controller objects are configured. There&rsquo;s a lot of important stuff here, so let&rsquo;s go line by line.</p>
+
+<pre><code>      this.init(); // kicks off Machine.Controller's internal setup
+                   // .. always call this first.
+</code></pre>
+
+<p>The <code>init()</code> function in a <code>Machine.Controller</code>-derived object is where internal initialization is housed. It should be the first thing you call in any controller you define. Obviously, overloading/replacing this would be a Bad Thing unless you really know what you&rsquo;re doing. Thankfully, at least, much like Controller development on the server, you&rsquo;re not terribly likely to have deeply nested inheritance hierarchies of Controller classes. But if you do need to do so, you can always take measures to Make It Work.</p>
+
+<pre><code>  this.clickCount = 0;
+</code></pre>
+
+<p><code>this.clickCount</code> is a stateful counter that we&rsquo;re going to use to track clicks to the DOM that this controller &ldquo;owns&rdquo;. This is an example of how client-side controllers are stateful (one thing that can be thought of differently from server-side controllers in many instances).</p>
+
+<p>Another thing to note: it can generally be assumed that any call to <code>this</code> in the top-level scope of a function attached to the prototype for a <code>Machine.Controller</code>-derived object will reference the object itself. This is normal behavior typically but, interestingly, this also applies to functions bound to events using the <code>addAction()</code> function, which is shown below. Typically, at least with jQuery event binding, <code>this</code> is bound to some kind of context information for the event in question. Of course, callbacks passed into jQuery functions like <code>$.each()</code> and <code>$.get()</code> will still have their <code>this</code> variable re-bound, as is expected.</p>
+
+<pre><code>  this.setView(viewLeft + this.clickCount + viewRight);
+</code></pre>
+
+<p>This is the <code>setView()</code> function, mentioned above. It is used to tell a controller what mechanism it will use to get some markup that will represent its presence in the DOM. There are two valid signatures for this function:</p>
+
+<pre><code>      this.setView(aString);
+      this.setView(aString, anotherString);
+</code></pre>
+
+<p>The first signature just takes a single string and is the format used in <code>HelloWorldController</code>. This treats the passed-in string as static markup text and will move to immediately convert it to a DOM and then attach it to the page&rsquo;s DOM when needed. This is the simplest possible use case for <code>setView()</code> and isn&rsquo;t often practical, but can be useful.</p>
+
+<p>The second signature takes two strings: The first is an argument to pass in to a ViewRenderer. The second argument is the &ldquo;key&rdquo; for that ViewRenderer. In this case, the &ldquo;key&rdquo; refers to a string that the renderer uses to globally identify itself when it is registered with <code>Machine.Controllers</code> mechanism for tracking ViewRenderers. The details of how this works won&rsquo;t be covered in this post, but just know that it is there.</p>
+
+<p>If you&rsquo;d like to see an example of this use of <code>setView()</code> and ViewRenderers right now, then look at the <code>/example/example.html</code> file in the <a href="http://github.com/machine/machine.javascript">machine-javascript</a> github repo and check out the &lsquo;ViewRenderers and Views&rsquo; example.</p>
+
+<p>Back to the larger issue of the signifigance of <code>setView()</code>, after calling <code>setView()</code> you should know that any calls to the controller&rsquo;s <code>render()</code> function will cause whatever &ldquo;instructions&rdquo; were passed in to <code>setView()</code> to be reevaluated and the results placed in the <code>domRoot</code> property of the object. You can also arbitrarily call <code>setView()</code> at your pleasure to change the &ldquo;rendering strategy&rdquo; for a given controller (but will of course want to call <code>render()</code> after that so the changes can be reflected in the <code>domRoot</code>).</p>
+
+<p>The last line in our controller&rsquo;s initializer function is:</p>
+
+<pre><code>  this.addAction('click', '#clicker', this.onClickerDivClick);
+</code></pre>
+
+<p>This is the previously mentioned <code>addAction()</code> function. It is a wrapper around jQuery&rsquo;s event binding mechanism that provides a few advantages:</p>
+
+<ul>
+<li>Events bound in this fashion don&rsquo;t need to be manually rebound when the controller&rsquo;s DOM changes (this uses a combination of jQuery Live Events and manual re-binding on DOM change).</li>
+<li>As mentioned above, callbacks passed in to <code>addAction()</code> keep their <code>this</code> property bound to the controller object, instead of the context for the event that called it.</li>
+<li>It provides a straightforward interface to pool your event bindings in a single location.</li>
+</ul>
+
+
+<p>The syntax is straightforward: The first argument is the name of the event that should be listened for. This uses the jQuery convention for event names (<code>onClick</code> becomes <code>click</code>, <code>onBlur</code> becomes <code>blur</code>, etc). The second argument is the CSS selector for the element(s) you want a callback bound to. And the third argument is the function callback you want to pass in. For the sake of keeping things clean, I specify my event handlers on the prototype of the controller itself and pass those in. There&rsquo;s nothing that says you can&rsquo;t specify the function inline, if you so desire. Do note, though, that <code>this</code> will be bound to the enclosing controller regardless.</p>
+
+<p>One last interesting (and important) detail: event callbacks bound using <code>addAction()</code> will only be triggered when the event occurs on elements <em>in the subset of the DOM owned by the controller</em>.</p>
+
+<p>So if, for example, you have several controllers in a given page that each expose elements that all have the <code>foo</code> class, then a call to <code>addAction('click', 'a.foo', this.someCallback);</code> will only trigger the <code>this.someCallback</code> function for clicks on those links in the view generated by the controller. Nifty, eh?</p>
+
+<p>Looking at the next chunk of JavaScript in our <code>HelloWorldController</code> example, we have:</p>
+
+<pre><code>      global.HelloWorldController.prototype = new Machine.Controller();
+      var hw = global.HelloWorldController.prototype;
+</code></pre>
+
+<p>Here, we see that <code>Machine.Controller</code> uses the usual prototypical inheritance found in JavaScript. It was originally based on John Resig&rsquo;s &ldquo;Simple JavaScript Inheritance&rdquo; model but was subsequently converted to use the more common prototype model. After that, you can see that we assign <code>HelloWorldController</code>&rsquo;s prototype to a simple, local variable called <code>hw</code> for convenience. This is to merely save keystrokes. It isn&rsquo;t such a big time-saver for simple controllers like this one but, if your controller had more functions attached to its prototype, this sort of thing becomes more valuable.</p>
+
+<p>Secondarily, it&rsquo;s also useful to declare the &ldquo;public&rdquo; functions and properties for a Controller, while allowing you to create functions that aren&rsquo;t attached to it and keep those as &ldquo;private&rdquo;, if that&rsquo;s your thing.</p>
+
+<p>And finally, we have:</p>
+
+<pre><code>      hw.onClickerDivClick = function(e) {
+        // 'this' is always bound to the controller object
+        this.clickCount += 1;
+        this.setView(viewLeft + this.clickCount + viewRight);
+        this.render(); // refresh the domRoot property
+      };
+</code></pre>
+
+<p>This is the callback that was passed-in to <code>addAction()</code> in our constructor function. It is a typical event-handler callback, with the event information as the sole argument to the function. This may or may not be useful to you and you can omit it if you want to. As is indicated in the comment, <code>this</code> is bound to the enclosing controller. This means that we have access to any stateful information contained therein (<code>clickCount</code>, in this case).</p>
+
+<p>The callback increments the <code>clickCount</code> property by one and then calls <code>setView()</code> with the same <code>viewLeft</code> and <code>viewRight</code> variables used in the constructor, but with the newly incremented <code>clickCount</code>. If we were using a more sophisticated rendering scheme, we would merely modify the controller&rsquo;s <code>model</code> property and let that &ldquo;trickle down&rdquo; to the ViewRenderer. In this case, the call to <code>setView()</code> would go away and the subsequent call to <code>render()</code> will be all that would be needed to update the DOM. But, since we&rsquo;re using the simplest possible approach to specifying a view in this example, we have to update the view&rsquo;s markup ourselves via <code>setView()</code>.</p>
+
+<h3>Conclusion</h3>
+
+<p>In this post, we covered:</p>
+
+<p>&ndash; The contents of the <code>HelloWorldController.js</code> file that is first mentioned in <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a> of this series. A typical <code>Machine.Controller</code>-derived object contains:
+&ndash; A constructor function, with the first statement in it being a call to <code>init()</code>. This does the internal setup for <code>Machine.Controller</code> and should always be called first. Also don&rsquo;t replace it in the prototype unless you know what you&rsquo;re doing.
+&ndash; In additional to any per-controller setup, a constructor will usually contain:
+&ndash; A call to <code>setView()</code> to designate the view rendering scheme for this controller. You can either pass in static text (which you need to update yourself via calls to <code>setView()</code>) or designate a pre-registered ViewRenderer to handle the details for you. The details of how ViewRenderers work is for another post.
+&ndash; One-or-more calls to <code>addAction()</code> to bind event callbacks to elements in the subset of the DOM owned by the controller.
+&ndash; Each call t <code>addAction()</code> is going to need a corresponding callback. <code>this</code> in the callback will correspond to the enclosing controller, giving you access to state information.
+&ndash; Call <code>render()</code> when you want to update the markup in the <code>domRoot</code>.</p>
+
+<p>Stayed tuned for Part 3, where I&rsquo;ll go over one of the most useful architectural features of <code>machine-controller.js</code>: ViewRenderers. Until then, take it easy!'</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[An Introduction to machine.javascript]]></title>
+    <link href="http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript/"/>
+    <updated>2010-02-17T12:06:31-08:00</updated>
+    <id>http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript</id>
+    <content type="html"><![CDATA[<p>This is the first in a series of [hopefully many] blog posts on the topic of <a href="http://github.com/machine/machine.javascript">machine.javascript</a>, an open source framework for helping developers create testable, deployable and well-factored UIs on the client in JavaScript. It covers some of my exposure to tools in this space and an overview of what <code>machine.javascript</code> consists of and how to use it. This post is tightly coupled to <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> in the series and each should not be read without considering the context of the other.</p>
+
+<h3>My experience with JavaScript MVC</h3>
+
+<p>As I&rsquo;ve gotten involved in my professional and personal capacities with rich, client-based UIs in te browser, one of the most indispensible patterns I&rsquo;ve had at my disposal would have to be &ldquo;MVC&rdquo;. I put MVC in scare-quotes because it is, in my opinion, one of the most overloaded terms in software development today. The most basic, valid definition for MVC in the context of this post, though, is to say that it is about creating patterns for application development that deliberately seek to segregate control and rendering logic which are optimized for the particular platform (in this case, JavaScript in the browser).</p>
+
+<p>With this in mind, the <a href="http://www.eleutian.com">Eleutian</a> team (notably Daniel Tabuenca) produced a kick-ass library that I always felt really attacked the problem of building complex, client-side applications in JavaScript in an effective, sensical fashion. It could have to do with the fact that this framework was the first I ever used in this particular solution/problem space, but I&rsquo;ve reviewed/experimented with several other frameworks since and never really liked any of them. Some reasons for this:</p>
+
+<ul>
+<li>Many of them (<a href="http://www.javascriptmvc.com">JavaScript MVC</a> in particular) are <em>very</em> heavy, requiring things like having Rhino installed to do command-line scaffolding (wtf?!)</li>
+<li>Others are tightly coupled in the manner in which view/template rendering is handled. Modern JavaScript development in the browser is interesting because there are several different ways to &ldquo;get there&rdquo;, when it comes to how you programatically display content. Options include, but aren&rsquo;t limited to: Direct DOM manipulation via jQuery/other frameworks ( $(&lsquo;#container&rsquo;).append(&lsquo;<div></div>&rsquo;); ), JavaScript Templating (EJS, Pure, etc) and/or tools/plugins that take structured data and directly output markup (jQuery.datatables, jqplot, etc). Eleutian&rsquo;s framework was originally tightly coupled to EJS for template rendering, but this has since changed (as I will explain shortly).</li>
+<li>Some frameworks get the abstraction wrong, in my opinion. The scope of what I, the developer, want when doing client-side work is pretty narrow: aggregate events around some subset of the DOM and have a uniform way of manipulating/regenerating the markup in that subset in response to said events. The premise of &ldquo;smart models&rdquo; in an isolated browser environment (wiring up AJAX calls to the server) is way too much abstraction for me and, in the laissez-faire world of JavaScript, strikes me as very open to &ldquo;entering a world of pain&rdquo; scenarios.</li>
+</ul>
+
+
+<p>From my time with the <a href="http://www.eleutian.com/">Eleutian</a> team, one of the things I missed the most was the MVC framework I had used when I worked there. And while I can by no means take credit for creating or expanding <code>machine.javascript</code>, I can definitely say that I was able to harass Aaron Jensen and Dan into releasing the libraries in question as OSS (although they claim they were going to do it anyways). Hence, the <a href="http://github.com/machine/machine.javascript">github repo</a> and this blog post.</p>
+
+<h3>What is machine-javascript?</h3>
+
+<p>At the heart of it, machine-javascript consists of two components, each an individual javascript file:</p>
+
+<ul>
+<li><code>machine-includer.js</code> &mdash; Specifies a &ldquo;script loader&rdquo; that works in a &ldquo;nested&rdquo; fashion (as opposed to &ldquo;flat&rdquo; includers like <a href="http://www.labjs.com">LABjs</a>). It allows you to specify your dependencies in a manner similar to how you would in server-side code and then load it all (in a cascading fashion) during the page load. Like other script loaders, it is often not practical for performance-critical/production uses, but is great for dev/debug work and provides a critical advantage: The nested, per-file <code>include()</code> statements provide get hints for a recursive script parser to build a list of dependencies which you could use to create a single, bundled for your markup. The include() function that it creates can handle both external script loads (when passed a string) or evaluate functions passed to it. Regardless of which, both are evaluated in order of specification based upon the dependency tree created when looking at how invokations of include() are specified in files and the same external script is only loaded once.</li>
+<li><code>machine-controller.js</code> &mdash; Contains a prototype for the <code>Machine.Controller</code> object, which can be inherited in your &ldquo;controllers&rdquo; and provides a straightforward framework for specifying events and rendering logic on a piece of the DOM that the controller will be associated with.</li>
+</ul>
+
+
+<p>Leveraging these two components, I will demonstrate how to create a simple controller with machine-javascript.</p>
+
+<h3>A Simple Example</h3>
+
+<p>Let&rsquo;s consider the simplest possible <em>hello world</em> case, utilizing machine-javascript.</p>
+
+<pre><code>&lt;head&gt;
+      &lt;title&gt;Hello, world!&lt;/title&gt;
+      &lt;script type="text/javascript" src="machine-includer.js"&gt;&lt;/script&gt;
+    &lt;/head&gt;
+</code></pre>
+
+<p>In our page&rsquo;s <head> tag section, we have a single script include. All we are going to load in this page in an explicit, static fashion is the <code>machine-includer.js</code> script.</p>
+
+<p>Somewhere down in the <body>, we have a chunk of markup that looks something like:</p>
+
+<pre><code>      // this is the initial setup for machine.includer
+      Machine.Includer.configure({scriptLocations : {'.*':''}});
+
+      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');
+
+      // and kick it all off once the page loads
+      include(function() {
+        $(function() {
+          var hw = new HelloWorldController();
+          hw.render();
+          $('#container').append(hw.domRoot);
+        });
+      });
+
+      include.load();
+
+  &lt;/script&gt;
+    &lt;div id="container"&gt;&lt;/div&gt;
+</code></pre>
+
+<p>So this is interesting; We do some inital configuration for <code>machine-includer.js</code>, then load our external scripts that the page is dependant upon and then instantiate an object (defined in an external dependency) and attach one of its properties to the DOM via jquery&rsquo;s <code>append()</code> function.</p>
+
+<p>Let&rsquo;s take each signifigant chunk on its own&hellip;</p>
+
+<pre><code>  // this is the initial setup for machine.includer
+  Machine.Includer.configure({scriptLocations : {'.*':''}});`&lt;/pre&gt;
+</code></pre>
+
+<p>This is the only initialization call needed to set up <code>machine.includer.js</code>; after this, you can safely call <code>include()</code>. The hash that is passed into <code>configure()</code> has one notable parameter: <code>scriptLocations</code>. It is a series of pairs that say to the includer, &ldquo;Hey, if you encounter the regex pattern in the left component in an includer URL, please prepend it with the contents of the right component.&rdquo; This means that, if you had some hinting from the server based on environment (dev, production, etc), you could configure <code>machine-includer.js</code> to mangle the script loads done via <code>include()</code> so they actually called out to an external CDN or local folder, depending on the runtime environment.</p>
+
+<p>For example, consider if your static content was delivered by a CDN like Cloudfront in your production setting, but was served from a local Scripts directory in the same web server when run in the dev/test environments.</p>
+
+<p>In an ASP.NET MVC WebForms template with a strongly-typed view that had an Environment property hooked up to some mythical enum or the like (this applies just as easily to other server frameworks) the server-side template might look like:</p>
+
+<pre><code>      // this is the initial setup for machine.includer
+      &lt;% 
+        var prefix = Model.Env == Env.Production ? 'http://s3.yourdomain.com/path/'
+          : '/Scripts/';
+      %&gt;
+      Machine.Includer.configure({scriptLocations : {'^static.*': '&lt;%= prefix %&gt;'}});
+</code></pre>
+
+<p>In this way, you can drive how your scripts are loaded at runtime with a simple, per-page check to the ambient environment.</p>
+
+<pre><code>      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');`&lt;/pre&gt;
+</code></pre>
+
+<p>In this chunk of code, we are declaring our dependencies for this page, utilizing calls to the <code>include()</code> function with strings for the paths to the files in question. As with <script> tags, you can pass in absolute or relative paths. But, as noted above with the <code>scriptLocations</code> configuration, you can also establish conventions (driven by server-side configuration) for mangling the path passed to <code>include()</code> to account for special cases.</p>
+
+<pre><code>      // and kick it all off once the page loads
+      include(function() {
+        $(function() {
+          include.load(); // actually loads the scripts
+
+          var hw = new HelloWorldController();
+          hw.render();
+          $('#container').append(hw.domRoot);
+        });
+      });
+</code></pre>
+
+<p>In this block we actually have some running javascript code, passed within a function to an invokation of <code>include()</code>. One thing worth pointing out, here, is that (when taken into context with the previous block where we used <code>include()</code> to load external scripts) calls to <code>include()</code> are never nested within the scope of a single file, they always appear serially. Now, when passing a string URL to <code>include()</code>, there will of course be calls to <code>include()</code> in the file indicated by the URL, but there are never calls to <code>include()</code> within the scope of a function passed to an existing call. Please remember this when writing your code or it&rsquo;ll fail and you&rsquo;ll be left scratching your head (speaking from experience, here).</p>
+
+<p>Back to the function itself, you can see that it consists of a callback for jQuery&rsquo;s &ldquo;onReady&rdquo; event binding using the <code>$(function() { });</code> convention. When the document is ready (the DOM is completely loaded, mainly), we create an instance of a <code>HelloWorldController</code>, which we can assume was imported in a previous call to <code>include()</code> (the code for <code>HelloWorldController</code> will be shown shortly). There is some setup that happens in the course of <code>HelloWorldController</code>&rsquo;s initialization, which allows us to then invoke its <code>render()</code> function. This is a function defined in the <code>Machine.Controller</code> prototype that leverages some configuration done during initialization and renders the controller&rsquo;s desired markup in its <code>domRoot</code> property. Subsequent calls to <code>render()</code> will update the markup stored there.</p>
+
+<p>Finally we, using jQuery&rsquo;s <code>append()</code> function and attach our controller&rsquo;s newly available <code>domRoot</code> to an element with an id of <code>container</code> (shown in the complete example above).</p>
+
+<p>One of the fringe benefits of <code>Machine.Controller</code> is that subsequent calls to <code>render()</code> (outside of or within <code>HelloWorldController</code>) will automatically update the domRoot <em>and</em> be reflected in the DOM without having call to <code>append()</code> on your container element again. This also applies to events bound from within <code>HelloWorldController</code> using <code>Machine.Controller</code>&rsquo;s syntax for doing so.</p>
+
+<p>Going back to the complete example above, let&rsquo;s examine, once again, the external scripts loaded as dependencies for the page.</p>
+
+<pre><code>      // include our external dependencies
+      include('jquery.js');
+      include('HelloWorldController.js');`&lt;/pre&gt;
+</code></pre>
+
+<p>You can guess pretty easily what&rsquo;s within <code>jquery.js</code>, and since it was needed in order to append our instance of <code>HelloWorldController</code> to the container <div> we loaded it up via <code>include()</code>.</p>
+
+<p>But what about <code>HelloWorldController.js</code>? This contains the definition for our controller, the contents of which will be shown in <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> of this series.</p>
+
+<p>Finally, we have:</p>
+
+<pre><code>  include.load();
+</code></pre>
+
+<p>This actually triggers the script load and should come after all of the previous calls to <code>include()</code>.</p>
+
+<h3>Conclusion</h3>
+
+<p>In this post, we covered the following topics:</p>
+
+<ul>
+<li>A brief overview of my anecdotal introduction to MVC in JavaScript and my personal opinions and nags about it.</li>
+<li>A rough description of the two pieces that make up <code>machine-javascript</code>: <code>machine-includer.js</code> and <code>machine-controller.js</code>.</li>
+<li>A &ldquo;hello world&rdquo; example was shown of the HTML markup for an example page that uses the includer and controller. The contents of the actual controller script have not yet been shown (and are saved for part 2 in this series).</li>
+<li>Some exposure to the semantics of using <code>machine-includer.js</code>.</li>
+<li>Shows how a finished controller is instantiated and attached to the DOM.</li>
+</ul>
+
+
+<p>I hope this post has been enlightening for you, the reader. Parts 1 and 2 really belong together (as each is uselss without the other), but if combined it&rsquo;d be a classic <a href="http://www.urbandictionary.com/define.php?term=tl%3Bdr">tl;dr</a> article. I thought that was a good place to split them up. In any case, please continue on to <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> for the rest of the story!</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Saber: A Newspeak web framework]]></title>
+    <link href="http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework/"/>
+    <updated>2009-11-06T11:50:39-08:00</updated>
+    <id>http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework</id>
+    <content type="html"><![CDATA[<p>I&rsquo;m very pleased to announce the creation of yet another web framework, although it is the first (that I know of) for the <a href="http://newspeaklanguage.org">Newspeak</a> platform. It started out as an intellectual exercise to explore Newspeak and some of it&rsquo;s reflective capabilities and idiosyncracies (specifically the pervasive class nesting). It was a very interesting and enjoyable development experience, to be sure (although it wasn&rsquo;t without its own gotcha moments and difficulties). Prior to this project, I played with Newspeak a bit at the time of the first release in late February. Besides that, my only experience with this style of development is some recreational programming with Squeak (I worked through about two-thirds of the <a href="http://squeak.preeminent.org/tut2007/html/">laser-game</a> tutorial). Newspeak is a very young, yet capable and robust platform and I am more than impressed with what I&rsquo;ve encountered so far, although a lot of its much-heralded functionality has yet to be implemented. All in good time, I suppose.</p>
+
+<h3>Saber and web frameworks in a historical context</h3>
+
+<p>Saber is a web application framework that takes a somewhat different approach to web application development and modelling from other, more popular frameworks that you may have heard of. In a way, it may be a sort of counter-evolution in terms of conceptualization of how web frameworks have been structured since Rails came on the scene.</p>
+
+<p>In the <a href="http://en.wikipedia.org/wiki/Web_application#History">Bad Old Days</a>, HTTP was used exclusively as a static content presentation protocol, where URL requests typically mapped to documents in a folder under the wwwroot of some site. When server-side technology solutions (ASP, Java Servlets, CGI, etc) became more common, it ended up being some script/code handling requests, which may or may not have been routed to a script corresponding to the URL somehow. But, with the rise of Rails and the slew of other HTTP-based &ldquo;MVC&rdquo; frameworks that have followed in its wake, we now have a popular paradigm of Controllers and Actions and the basic request-handling conventions that they bring to mind. When the need for more taxonomy beyond Controller/Action became perceived as necessary, we got things like Areas or custom routing schemes to match a request for some URL to a given action, perhaps with some parameter mapping to give the whole thing a more RESTful feel.</p>
+
+<p>The pitfalls of the Controller/Action modelling pattern for web frameworks is something that isn&rsquo;t within the scope of the topic of this post, but it suffices to say that it has become enough of a nuisance after a while for any non-trivial example application that several people have come up with alternative approaches. Foremost of these in my mind is <a href="http://www.sinatrarb.com">Sinatra</a>, an excellent framework that models endpoints as &ldquo;routes&rdquo; (that is, some HTTP Method/URL pair that can be matched by a request) and a block of code to handle that request when the route is matched. I have experimented a bit with porting this approach to the ASP.NET world (the results of which can be found <a href="http://github.com/olsonjeffery/mercury">here</a>). This approach is present in several frameworks as a &lsquo;first-class&rsquo; alternative to the Controller/Action structure so popular elsewhere (from the direct url->handler WSGI mapping in Google AppEngine&rsquo;s <a href="http://code.google.com/appengine/docs/python/gettingstarted/usingwebapp.html">webapp</a> framework to <a href="http://trac.caffeine-it.com/openrasta">OpenRasta</a>).</p>
+
+<p>Saber subscribes to the above request/routing-centric viewpoint, but with a twist. From the Saber README:</p>
+
+<blockquote><p>Essentially: Instead of artificially aggregating endpoints into a Controller/Action hierarchy, Saber lets the structure of the routing handlers becoming the organizing taxonomy for the application.</p></blockquote>
+
+<p>To further entertain this MVC straw-man, most stereotypical MVC web frameworks reveal the intent and function of their endpoint handlers by aggregating them as actions within controllers. In some static frameworks (in Java or .NET, mostly), the aggregation is also an administrative concern for convenience when using an Inversion-of-Control scheme, leading to kludgey groupings of functionality that don&rsquo;t scale well, in my experience.</p>
+
+<p>So, how does Saber acheive this taxonomy? By using a fundamental feature of Newspeak: pervasive class nesting. In Newspeak, there is no global namespace. Practically, this means that every &ldquo;top-level&rdquo; class itself acts as a module. Within this top-level class, you can nest other classes. It seemed natural, to me, to use this approach to model a web site&rsquo;s request handlers, with a class called <code>foo</code> handling requests to <code>/foo</code>, and a class nested within that one called <code>bar</code> handling requests to <code>/foo/bar</code>, etc. Each of these &ldquo;Handler&rdquo; classes implements one or more methods that each correspond to an HTTP method (<code>onGet:</code> for GET, <code>onPost:</code> for POST, etc). These Handler methods are themselves the actual endpoints for a given request.</p>
+
+<p>Saber also includes a &ldquo;toy&rdquo; view rendering system, [creatively] named SaberView.</p>
+
+<h3>So what does this look like?</h3>
+
+<p>At the highest level, you have a &ldquo;site&rdquo; class that acts as a model/container for your site&rsquo;s definition. This site contains a few administrative things (like the name of the site for the httpd, the port, etc). Besides that, it must include a nested class called SiteRoot that inherits from SaberHandler (which is the basic route Handler class in Saber). That class itself will match on requests to the root of a site. From there, you can nest classes that match to &ldquo;nodes&rdquo; in a route request. For example:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+</code></pre>
+
+<p>This would be an example of a taxonomy of classes that would have handlers that could potentially match requests for <code>/</code>, <code>/foo</code>, <code>/baz</code> or <code>/baz/bar</code>. Once again, a handler will only be called if it implements a method corresponding to the HTTP method of a request. So if <code>/baz/bar</code> only implements <code>onPost:</code>, then a GET request to <code>/baz/bar</code> will return a 404.</p>
+
+<h3>Specialized handlers</h3>
+
+<p>But vanilla route handling isn&rsquo;t all that Saber does. It handles a number of &ldquo;must have&rdquo; features for routing-centric web frameworks, including: a NotFound handler scheme, &lsquo;parameter&rsquo; handlers and static file serving.</p>
+
+<h4>Not found handlers</h4>
+
+<p>By default, Saber will return a generic 404 response if a request&rsquo;s url cannot be matched to a handler. Optionally, you can specify a special handler that inherits from <code>SaberNotFoundHandler</code> that will be processed when a request cannot be matched to an existing Handler. Otherwise, it works just like any other handler with the <code>onGet:</code>, <code>onPost:</code>, etc.</p>
+
+<h4>Parameter handlers</h4>
+
+<p>Saber allows specifying a Handler nested within another one, inheriting from <code>SaberParameterHandler</code> to be used as a special-case parameter matching handler. That is, given the following taxonomy:</p>
+
+<pre><code>+ SiteRoot
+  - foo
+  - baz
+    - bar
+    - nameParam
+</code></pre>
+
+<p>In this case, the <code>nameParam</code> class is a class that inherits from <code>SaberParameterHandler</code>. What this means is that, at request time, if the request url doesn&rsquo;t match to any of the other &lsquo;sibling&rsquo; handlers at the same level as the parameter handler, then the parameter handler itself will be matched. This way, it could be used as a catch-all and won&rsquo;t interfere with handlers at the same level. This means that requests for <code>/baz/bar</code> would match to the <code>bar</code> class, but requests for <code>/baz/john</code> or somesuch would match to the <code>nameParam</code> handler, since there is no other handler that would match the request, otherwise. Also, the value of the request (in the case of the previous example &lsquo;john&rsquo;) will be stored within the requests query fields with <em>the name of the handler</em> as the key.</p>
+
+<p>Naturally, this means that only a single <code>SaberParameterHandler</code>-inheriting class can be nested within a group of sibling handlers. Besides the above issues, the handler behaves exactly like a normal handler, including allowing other handlers to be nested within it.</p>
+
+<h4>Serving static content</h4>
+
+<p>And what web framework would be complete without a means with which to serve up CSS, JavaScript, etc? Saber allows for classes that inherit from <code>SaberStaticFileHandler</code> that are nested with the SiteRoot to be mapped to physical locations on the filesystem (exposed by overriding the <code>documentRoot</code> method on the class) and mapped to the class&#8217; name. So a class inheriting from <code>SaberStaticFileHandler</code> named <code>static</code> and pointing to a location on the filesystem would be matched. A request for <code>/static/style.css</code> would be matched to whatever path was specified in the <code>documentRoot</code> with <code>style.css</code> appended to the end.</p>
+
+<h3>What&rsquo;s not-so-great about Saber, right now?</h3>
+
+<p>First and foremost: I&rsquo;m not terribly happy with the rather &ldquo;minimalistic&rdquo; view engine. It has two very useful features (value substition and block inheritance), but that&rsquo;s it. I, personally, am a very big fan of pushing as much work onto the client javascript as possible, using server-side views to deliver JSON and that&rsquo;s it, if possible. But there are always some situations where it makes sense to just do the rendering on the server (like some non-interactive reporting that won&rsquo;t feature any AJAX callbacks after the initial request). With this in mind, a slighlty more robust solution with conditionals, looping and more sophisticated value substitution (that allows passing in actual objects instead of just strings) would be nice, longterm.</p>
+
+<p>Also, Saber is currently tightly coupled to the underlying platform for the Newspeak environment: Squeak. This isn&rsquo;t a bad thing necessarily, but eventually Newspeak will move beyond this and Saber currently uses HttpService, which is used in <a href="http://www.seaside.st/">Seaside</a> (not to mention several collection primitives, HttpRequest/Response, etc). I&rsquo;m glad that the Squeak libraries are there, as they allowed me to cut some corners and concentrate on features instead of low-level plumbing, but these things will have to be replaced longterm. Whether or not Saber survives long enough to see that day is another question.</p>
+
+<p>Another nagging issue is that Saber doesn&rsquo;t support multiple sites in the same instance using the HTTP 1.1 host header. This is supported in the underlying httpd from Squeak, but isn&rsquo;t something that I&rsquo;ve gotten around to implementing.</p>
+
+<p>Overall, I tried to keep the scope of the project somewhat narrow (I&rsquo;ve only been working on it for a few weeks and I&rsquo;m quite pleased with the progress I&rsquo;ve made). I mostly wanted to get the project out &ldquo;into the wild&rdquo; in order to get some feedback on the viability of this approach. I wouldn&rsquo;t really recommend the nested class approach other platforms like Java or .NET, even though they support this feature. Alot of what makes nested classes appealing in Newspeak is that it&rsquo;s a first-class concern and is built into the IDE, so there&rsquo;s some tooling to reduce the friction. I wouldn&rsquo;t say that this same tooling/mindset exists for other platforms.</p>
+
+<h3>How to see Saber in action</h3>
+
+<p>The README.md in the <a href="http://github.com/olsonjeffery/saber">Saber repository</a> has some pointers on how to get started, should you be so inclined.</p>
+
+<h3>Conclusion</h3>
+
+<p>I&rsquo;d like to give a big thanks to the motivating people behind this project: The Newspeak team, for conceiving of this awesome vision and delivering a working prototype for people like me to hack around with. I wish this project the best and hope to find a way to get involved with helping move things forward, longterm. Also, all of the people who aren&rsquo;t satisfied the state of things in terms of software abstractions and patterns in general. Whether you&rsquo;re a pathological tinkerer like me or a more pragmatically-minded person, it&rsquo;s the unreasonable nerd who isn&rsquo;t satisfied with the reigning paradigm that actually moves the ball forward.</p>
+
+<p>Please note that I don&rsquo;t actually consider Saber to be a part of the canon of earth-shattering software innovations or theory; I just like to speak in broad, sweeping terms.</p>
+]]></content>
+  </entry>
+  
+</feed>

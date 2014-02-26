@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: meta | programmer, etc]]></title>
+  <link href="http://olsonjeffery.github.io/blog/categories/meta/atom.xml" rel="self"/>
+  <link href="http://olsonjeffery.github.io/"/>
+  <updated>2014-02-26T12:54:41-08:00</updated>
+  <id>http://olsonjeffery.github.io/</id>
+  <author>
+    <name><![CDATA[Jeff Olson]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Hello world GitHub blog post]]></title>
+    <link href="http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post/"/>
+    <updated>2009-08-17T12:09:32-07:00</updated>
+    <id>http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post</id>
+    <content type="html"><![CDATA[<p>Wow, five days short of a whole year since my last post on my blogger.com blog. I&rsquo;ve kind of had the idea in my head for some time to move my blog to GitHub. I may lose some bells and whistles, but I gain an easier way (in my opinion) to create and publish posts (and plus, markdown > *).</p>
+
+<p>Anywho, hopefully I&rsquo;ll post more, since I don&rsquo;t have any shortage of ideas kicking around that I&rsquo;d like to share.</p>
+
+<p>And now, some code to see how highlighting looks:</p>
+
+<pre><code>import System
+import System.Collections.Generic
+
+public class Foo(Bar):
+  public def constructor():
+    pass
+
+  public def Baz(input as string) as string:
+    return 'Foobie '+input
+</code></pre>
+
+<p>Here&rsquo;s to many more!</p>
+]]></content>
+  </entry>
+  
+</feed>
