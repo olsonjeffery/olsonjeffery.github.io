@@ -4,7 +4,7 @@
   <title><![CDATA[Category: newspeak | programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/blog/categories/newspeak/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-02-26T15:47:59-08:00</updated>
+  <updated>2014-05-10T09:21:21-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Saber: A Newspeak web framework]]></title>
     <link href="http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework/"/>
-    <updated>2009-11-06T11:50:39-08:00</updated>
+    <updated>2009-11-06T13:50:39-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework</id>
     <content type="html"><![CDATA[<p>I&rsquo;m very pleased to announce the creation of yet another web framework, although it is the first (that I know of) for the <a href="http://newspeaklanguage.org">Newspeak</a> platform. It started out as an intellectual exercise to explore Newspeak and some of it&rsquo;s reflective capabilities and idiosyncracies (specifically the pervasive class nesting). It was a very interesting and enjoyable development experience, to be sure (although it wasn&rsquo;t without its own gotcha moments and difficulties). Prior to this project, I played with Newspeak a bit at the time of the first release in late February. Besides that, my only experience with this style of development is some recreational programming with Squeak (I worked through about two-thirds of the <a href="http://squeak.preeminent.org/tut2007/html/">laser-game</a> tutorial). Newspeak is a very young, yet capable and robust platform and I am more than impressed with what I&rsquo;ve encountered so far, although a lot of its much-heralded functionality has yet to be implemented. All in good time, I suppose.</p>
 

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Knockout Roguelike/HTML map demo</title>
+    <link rel="stylesheet" href="/content/ko-map/assets/css/Site.css" />
+    <link rel="stylesheet" href="/content/ko-map/assets/css/bootstrap.css" />
+  </head>
+  <body>
+    <div id="map_container" class="container" data-bind="foreach: map">
+        <div class="row" data-bind="foreach: Tiles">
+            <div class="col-lg-2" data-bind="css: tileBackground">
+                <!-- ko if: playerIsHere -->
+                <h1>&#64;</h1>
+                <!-- /ko-->
+                <!-- ko if: unoccupied -->
+                <h1>&emsp;</h1>
+                <!-- /ko-->
+                <!-- ko if: !Passable-->
+                <h1>W</h1>
+                <!-- /ko-->
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="/content/ko-map/assets/scripts/require.js"></script>
+    <script type="text/javascript">
+      TileMap = [
+        {
+          Tiles: [
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false }
+          ] }, {
+          Tiles: [
+            { Passable: false },
+            { Passable: true },
+            { Passable: false },
+            { Passable: true },
+            { Passable: true },
+            { Passable: false }
+          ] }, {
+          Tiles: [
+            { Passable: false },
+            { Passable: true },
+            { Passable: false },
+            { Passable: true },
+            { Passable: true },
+            { Passable: false }
+          ] }, {
+          Tiles: [
+            { Passable: false },
+            { Passable: true },
+            { Passable: true },
+            { Passable: false },
+            { Passable: true },
+            { Passable: false }
+          ] }, {
+          Tiles: [
+            { Passable: false },
+            { Passable: true },
+            { Passable: true },
+            { Passable: true },
+            { Passable: true },
+            { Passable: false }
+          ] }, {
+          Tiles: [
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false },
+            { Passable: false }
+          ] }
+      ];
+      PlayerPos = {x: 3, y: 2 };
+      requirejs.config({
+          baseUrl: '/content/ko-map/assets/scripts'
+      });
+      require(["/content/ko-map/assets/scripts/app.js"]);
+    </script>
+  </body>
+</html>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: .NET | programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/blog/categories/dot-net/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-02-26T15:47:59-08:00</updated>
+  <updated>2014-05-10T09:21:21-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Deployment with OpenWrap]]></title>
     <link href="http://olsonjeffery.github.io/blog/2011/02/01/deployment-with-openwrap/"/>
-    <updated>2011-02-01T12:46:09-08:00</updated>
+    <updated>2011-02-01T14:46:09-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2011/02/01/deployment-with-openwrap</id>
     <content type="html"><![CDATA[<p>This post is a brief, hand-wavey outline of my efforts to integrate and abuse OpenWrap for the purposes of deployment automation in my shop. I began working on this post before starting the actual process of integrating OpenWrap and have updated as I&rsquo;ve progressed. The goal should be that, when complete, it will provide an introductory outline of what a newcomer to OpenWrap (as I consider myself, prior to this post) will want to know/learn in order to competantly grapple with the topics contained herein.</p>
 

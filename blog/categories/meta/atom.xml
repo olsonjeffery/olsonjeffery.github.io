@@ -4,7 +4,7 @@
   <title><![CDATA[Category: meta | programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/blog/categories/meta/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-02-26T15:47:59-08:00</updated>
+  <updated>2014-05-10T09:21:21-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Hello world GitHub blog post]]></title>
     <link href="http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post/"/>
-    <updated>2009-08-17T12:09:32-07:00</updated>
+    <updated>2009-08-17T14:09:32-05:00</updated>
     <id>http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post</id>
     <content type="html"><![CDATA[<p>Wow, five days short of a whole year since my last post on my blogger.com blog. I&rsquo;ve kind of had the idea in my head for some time to move my blog to GitHub. I may lose some bells and whistles, but I gain an easier way (in my opinion) to create and publish posts (and plus, markdown > *).</p>
 

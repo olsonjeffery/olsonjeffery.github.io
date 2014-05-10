@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-02-26T15:47:59-08:00</updated>
+  <updated>2014-05-10T09:21:21-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[An Introduction to machine.javascript part 2]]></title>
     <link href="http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/"/>
-    <updated>2010-02-18T12:28:51-08:00</updated>
+    <updated>2010-02-18T14:28:51-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2</id>
     <content type="html"><![CDATA[<p>This post is a continuation from <a href="/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, which introduced the ideas of <code>machine-javascript</code>, namely the script loader and a simple example, showing how a <code>HelloWorldController</code> was instantiated and attached to the page. What was not explored, however, was what the <code>HelloWorldController</code> actually looks like and how it works. That is the topic of this post.</p>
 
@@ -174,7 +174,7 @@
   <entry>
     <title type="html"><![CDATA[An Introduction to machine.javascript]]></title>
     <link href="http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript/"/>
-    <updated>2010-02-17T12:06:31-08:00</updated>
+    <updated>2010-02-17T14:06:31-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript</id>
     <content type="html"><![CDATA[<p>This is the first in a series of [hopefully many] blog posts on the topic of <a href="http://github.com/machine/machine.javascript">machine.javascript</a>, an open source framework for helping developers create testable, deployable and well-factored UIs on the client in JavaScript. It covers some of my exposure to tools in this space and an overview of what <code>machine.javascript</code> consists of and how to use it. This post is tightly coupled to <a href="/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> in the series and each should not be read without considering the context of the other.</p>
 

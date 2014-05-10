@@ -4,7 +4,7 @@
   <title><![CDATA[programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-02-26T15:47:59-08:00</updated>
+  <updated>2014-05-10T09:21:21-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Deployment with OpenWrap]]></title>
     <link href="http://olsonjeffery.github.io/blog/2011/02/01/deployment-with-openwrap/"/>
-    <updated>2011-02-01T12:46:09-08:00</updated>
+    <updated>2011-02-01T14:46:09-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2011/02/01/deployment-with-openwrap</id>
     <content type="html"><![CDATA[<p>This post is a brief, hand-wavey outline of my efforts to integrate and abuse OpenWrap for the purposes of deployment automation in my shop. I began working on this post before starting the actual process of integrating OpenWrap and have updated as I&rsquo;ve progressed. The goal should be that, when complete, it will provide an introductory outline of what a newcomer to OpenWrap (as I consider myself, prior to this post) will want to know/learn in order to competantly grapple with the topics contained herein.</p>
 
@@ -312,7 +312,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[An Introduction to machine.javascript part 2]]></title>
     <link href="http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2/"/>
-    <updated>2010-02-18T12:28:51-08:00</updated>
+    <updated>2010-02-18T14:28:51-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2010/02/18/an-introduction-to-machine-dot-javascript-part-2</id>
     <content type="html"><![CDATA[<p>This post is a continuation from <a href="http://olsonjeffery.github.io/javascript/mvc/2010/02/17/An-Introduction-To-Machine-Controller.html">Part 1</a>, which introduced the ideas of <code>machine-javascript</code>, namely the script loader and a simple example, showing how a <code>HelloWorldController</code> was instantiated and attached to the page. What was not explored, however, was what the <code>HelloWorldController</code> actually looks like and how it works. That is the topic of this post.</p>
 
@@ -470,7 +470,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[An Introduction to machine.javascript]]></title>
     <link href="http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript/"/>
-    <updated>2010-02-17T12:06:31-08:00</updated>
+    <updated>2010-02-17T14:06:31-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2010/02/17/an-introduction-to-machine-dot-javascript</id>
     <content type="html"><![CDATA[<p>This is the first in a series of [hopefully many] blog posts on the topic of <a href="http://github.com/machine/machine.javascript">machine.javascript</a>, an open source framework for helping developers create testable, deployable and well-factored UIs on the client in JavaScript. It covers some of my exposure to tools in this space and an overview of what <code>machine.javascript</code> consists of and how to use it. This post is tightly coupled to <a href="http://olsonjeffery.github.io/javascript/mvc/2010/02/18/An-Introduction-To-Machine-Controller-Part-2.html">Part 2</a> in the series and each should not be read without considering the context of the other.</p>
 
@@ -626,7 +626,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[I am Alt.Net Pursefight]]></title>
     <link href="http://olsonjeffery.github.io/blog/2010/01/15/i-am-alt-dot-net-pursefight/"/>
-    <updated>2010-01-15T11:57:57-08:00</updated>
+    <updated>2010-01-15T13:57:57-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2010/01/15/i-am-alt-dot-net-pursefight</id>
     <content type="html"><![CDATA[<p>This post is only of use to those who were monitoring/involved in the ALT.NET &ldquo;movement&rdquo; circa 2007 and 2008. It was an age of high adventure where a desire, predicated on the assumption that the status quo in terms of Microsoft-driven guidance on Patterns &amp; Practices and tooling was not leading to the creation of Good Software in the short and long terms, had given rise to a set of &ldquo;alternative&rdquo; orthadoxies meant to improve the lot of developers.</p>
 
@@ -661,7 +661,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[Saber: A Newspeak web framework]]></title>
     <link href="http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework/"/>
-    <updated>2009-11-06T11:50:39-08:00</updated>
+    <updated>2009-11-06T13:50:39-06:00</updated>
     <id>http://olsonjeffery.github.io/blog/2009/11/06/saber-a-newspeak-web-framework</id>
     <content type="html"><![CDATA[<p>I&rsquo;m very pleased to announce the creation of yet another web framework, although it is the first (that I know of) for the <a href="http://newspeaklanguage.org">Newspeak</a> platform. It started out as an intellectual exercise to explore Newspeak and some of it&rsquo;s reflective capabilities and idiosyncracies (specifically the pervasive class nesting). It was a very interesting and enjoyable development experience, to be sure (although it wasn&rsquo;t without its own gotcha moments and difficulties). Prior to this project, I played with Newspeak a bit at the time of the first release in late February. Besides that, my only experience with this style of development is some recreational programming with Squeak (I worked through about two-thirds of the <a href="http://squeak.preeminent.org/tut2007/html/">laser-game</a> tutorial). Newspeak is a very young, yet capable and robust platform and I am more than impressed with what I&rsquo;ve encountered so far, although a lot of its much-heralded functionality has yet to be implemented. All in good time, I suppose.</p>
 
@@ -747,7 +747,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[Thinking about a "Step 2" for Context/Specification-style testing]]></title>
     <link href="http://olsonjeffery.github.io/blog/2009/10/11/thinking-about-a-step-2-for-context-slash-specification-style-testing/"/>
-    <updated>2009-10-11T12:13:42-07:00</updated>
+    <updated>2009-10-11T14:13:42-05:00</updated>
     <id>http://olsonjeffery.github.io/blog/2009/10/11/thinking-about-a-step-2-for-context-slash-specification-style-testing</id>
     <content type="html"><![CDATA[<p>This is a post about the evolution of my thinking and practice regarding Context/Specification-style test composition. I&rsquo;d like to review my understanding and approach to it over time and some of the frictions that I encountered after the initial re-alignment of thinking that occurs when changing gears to this style of TDD, as opposed to more orthodox varieties. There may be nothing new here for some practitioners of TDD (if that&rsquo;s you: sorry for wasting your time); but for others who have made/are making the same mistakes as I or have some kind of &ldquo;itch&rdquo; in the back of their mind about how their tests just don&rsquo;t quite &ldquo;work&rdquo; with how they&rsquo;re currently writing them, perhaps this will help.</p>
 
@@ -1004,7 +1004,7 @@ o init-wrap projectname
   <entry>
     <title type="html"><![CDATA[Hello world GitHub blog post]]></title>
     <link href="http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post/"/>
-    <updated>2009-08-17T12:09:32-07:00</updated>
+    <updated>2009-08-17T14:09:32-05:00</updated>
     <id>http://olsonjeffery.github.io/blog/2009/08/17/hello-world-github-blog-post</id>
     <content type="html"><![CDATA[<p>Wow, five days short of a whole year since my last post on my blogger.com blog. I&rsquo;ve kind of had the idea in my head for some time to move my blog to GitHub. I may lose some bells and whistles, but I gain an easier way (in my opinion) to create and publish posts (and plus, markdown > *).</p>
 
