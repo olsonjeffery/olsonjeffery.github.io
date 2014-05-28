@@ -4,7 +4,7 @@
   <title><![CDATA[Category: javascript | programmer, etc]]></title>
   <link href="http://olsonjeffery.github.io/blog/categories/javascript/atom.xml" rel="self"/>
   <link href="http://olsonjeffery.github.io/"/>
-  <updated>2014-05-10T09:21:21-05:00</updated>
+  <updated>2014-05-27T12:06:08-05:00</updated>
   <id>http://olsonjeffery.github.io/</id>
   <author>
     <name><![CDATA[Jeff Olson]]></name>
@@ -12,6 +12,189 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[A Roguelike Hello World In Knockout.js]]></title>
+    <link href="http://olsonjeffery.github.io/blog/2014/05/26/a-roguelike-hello-world-in-knockout-dot-js/"/>
+    <updated>2014-05-26T05:20:13-05:00</updated>
+    <id>http://olsonjeffery.github.io/blog/2014/05/26/a-roguelike-hello-world-in-knockout-dot-js</id>
+    <content type="html"><![CDATA[<p>Lately, I&rsquo;ve had the opportunity to be exposed to some web technologies with which I had little previous experience. While I&rsquo;ve spent quite a bit of time in the world of client-side programming in the browser using tools like WebGL, Backbone.js, etc, I&rsquo;ve yet to have occasion to get exposed to any of the new breed of DOM binding libraries.</p>
+
+<p>Thankfully, one of the new tools I&rsquo;ve had a chance to develop with has been <a href="http://knockoutjs.com/" title="Knockout.js">Knockout.js</a>. This post is about a <a href="https://olsonjeffery.github.io/content/ko-map/index.html" title="Knockout.js RogueLike Map Demo">hello world exercise that</a> that I worked on get some basic knowledge in the framework.</p>
+
+<h3>Motivation</h3>
+
+<p>I wanted to make a simple, <a href="https://en.wikipedia.org/wiki/Roguelike" title="Roguelike">roguelike</a> game map that represented the UI using DOM elements, while keeping the actual state backed in a View Model. This seemed like the perfect nail in search of a Knockout-based hammer.</p>
+
+<p>Aside from Knockout, I used bootstrap to style the markup. A usual coterie of utility libraries was employed (jQuery, underscore, etc). And since no self-respecting roguelike relies on the mouse, I ended up using <a href="http://craig.is/killing/mice" title="Mousetrap">Mousetrap</a> for keyboard event hooks. Also mumble mumble <a href="http://www.requirejs.org/" title="Require.js">require.js</a> blah blah AMD.</p>
+
+<p>For the purpose of my demo, my approach was that I&rsquo;d deliver a JSON payload as part of the initial document. This would be accessed from my application setup code, which would parse the data into the View Model, set up keyboard events and call <code>ko.applyBindings</code>.</p>
+
+<h3>The Demo Itself</h3>
+
+<p>The goal is to create a simple, &ldquo;roguelike&rdquo; demo that consists of the venerable <code>@</code> symbol, within a grid-like map that makes up its little world. Real games have all kinds of things, like: the passage of time, hunger, combat, magic, mongsters, death etc etc ad infinitum. Ours is concerned with just presenting a basic, 6x6 grid of tiles that&rsquo;re passable (or not). The player&rsquo;s location is marked by the <code>@</code>&rsquo;s location on the map. You can move the player about with the arrow keys on your keyboard. I could probably do something for mobile, but I haven&rsquo;t gotten around to it.</p>
+
+<p>What follows is a breakdown of the <a href="https://olsonjeffery.github.io/content/ko-map/index.html" title="Knockout.js RogueLike Map Demo">demo</a>.</p>
+
+<h3>HTML &amp; Data Bindings</h3>
+
+<p>``` html</p>
+
+<pre><code>&lt;div id="map_container" class="container" data-bind="foreach: map"&gt;
+    &lt;div class="row" data-bind="foreach: Tiles"&gt;
+        &lt;div class="col-lg-2" data-bind="css: tileBackground"&gt;
+            &lt;!-- ko if: playerIsHere --&gt;
+            &lt;h1&gt;&amp;#64;&lt;/h1&gt;
+            &lt;!-- /ko--&gt;
+            &lt;!-- ko if: unoccupied --&gt;
+            &lt;h1&gt;&amp;emsp;&lt;/h1&gt;
+            &lt;!-- /ko--&gt;
+            &lt;!-- ko if: !Passable--&gt;
+            &lt;h1&gt;W&lt;/h1&gt;
+            &lt;!-- /ko--&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+
+<p>```</p>
+
+<p>Here we see the basic outline of the knockout mapping used. At the top-level, a <code>div</code> element with a <code>data-bind</code> attribute. It uses the <a href="http://knockoutjs.com/documentation/foreach-binding.html" title="Knockout - foreach">foreach</a> binding to iterate over a <code>map</code> property, provided in the View Model. Within that, another <code>div</code> element, styled as a Bootstrap <code>row</code> that will, in turn, iterate over the individual tiles within its row via its own <code>foreach</code> binding.</p>
+
+<p>The contents of the cell, itself, are simple. It&rsquo;s a Bootstrap column, 2 units wide (6x6 map, remember), whose presentation reflects the current state of the Tile. On the column <code>div</code> itself is a <code>css</code> data-binding, which will apply a class based on the value of the <code>tileBackground</code> observable for the View Model. A series of <a href="http://knockoutjs.com/documentation/if-binding.html" title="Knockout - if">ko if</a> comments bindings determine the content of the cell, based on a number of observables within the View Model.</p>
+
+<h3>The Raw JSON Input</h3>
+
+<p>``` javascript
+TileMap = [</p>
+
+<pre><code>{
+    Tiles: [
+        { Passable: false },
+        { Passable: false },
+        { Passable: false },
+        { Passable: false },
+        { Passable: false },
+        { Passable: false }
+    ]
+},
+// ...
+</code></pre>
+
+<p>];
+```</p>
+
+<p>This is a snippet of a single row of the <code>TileMap</code> value, which is injected into the initial script black of our demo&rsquo;s HTML markup. In a real application, this would be driven by logic on the server, but it&rsquo;s stubbed out in this demo as a static value and attached to the <code>window</code> global.</p>
+
+<p>The <code>TileMap</code> is just an array of objects, each with a single <code>Tiles</code> property that is also an array of javascript objects. This represents the layout of the map and is a small concession to the presentation, making it easier to showhorn into the knockout data-binding scheme. Most likely, an actual application would be representing the map as either a 2D-array, a flat array with multiplication/bit-shifts for y-axis access or even a tree structure for more sophisticated schemes.</p>
+
+<h3>Making TileMap Usable By Knockout</h3>
+
+<p>``` javascript
+var map = TileMap;
+var positionSubscriber = new ko.subscribable();
+var MapViewModel = function() {</p>
+
+<pre><code>this.map = map;
+_.each(this.map, function(row, ty) {
+    _.each(row.Tiles, function (t, tx) {
+        t.playerPos = ko.observable(PlayerPos);
+        positionSubscriber.subscribe(function (newPos) {
+            this.playerPos(newPos);
+        }, t, "move");
+        t.tileBackground = ko.computed(function() {
+            return this.Passable ? "bg-info" : "bg-primary";
+        }, t);
+        t.playerIsHere = ko.computed(function() {
+            return this.playerPos().x == tx &amp;&amp; this.playerPos().y == ty;
+        }, t);
+        t.unoccupied = ko.computed(function() {
+            return (this.playerPos().x != tx || this.playerPos().y != ty)
+                &amp;&amp; this.Passable;
+        }, t);
+    });
+});
+</code></pre>
+
+<p>};
+```</p>
+
+<p>We establish a <code>MapViewModel</code> that will contain our data. Additionally, we have set up a <code>ko.subscribable</code> to act as an event sink for input-driven changes to the <code>@</code> position on the map.</p>
+
+<p>The <code>MapViewModel</code> takes, as the <code>map</code> property, the <code>TileMap</code> covered earlier in this post. It will then iterate over the entire contents of that object, bolting-on several Knockout <code>ko.computed</code> observable functions that reflect the tile&rsquo;s state and update dynamically with changes to the View Model. You will recognize these observables as being referenced in the HTML markup shown previously. All of the individual tiles, by virtue of function environment capture, have access to their <code>x</code> and <code>y</code> coordinates (<code>tx</code> and <code>ty</code>, respectively) to use for their logic.</p>
+
+<ul>
+<li><code>playerPos</code> &ndash; an observable representing the player&rsquo;s global position. Changes this will update the <code>playerIsHere</code> computed observable</li>
+<li><code>tileBackground</code> &ndash; Sets a bootstrap class to change the tile element&rsquo;s color based on whether it&rsquo;s a wall or a passable space</li>
+<li><code>playerIsHere</code> &ndash; Indicates whether this is the space, on the map, where the player is located. Note that the tile itself doesn&rsquo;t carry information on the player&rsquo;s presence or lack thereof. Instead, the tile is listening for changes to the player&rsquo;s position via <code>positionSubscriber</code> subscribable. Every time the subscription event fires, the <code>playerPos</code> observable is updated, leading to <code>playerIsHere</code> being recalculated</li>
+<li><code>unoccupied</code> &ndash; Naturally, the inverse of <code>playerIsHere</code></li>
+</ul>
+
+
+<h3>Using external input to drive View Model changes</h3>
+
+<p>``` javascript
+var currPos = { x: PlayerPos.x, y: PlayerPos.y };
+function findTile(coords) {</p>
+
+<pre><code>return map[coords.y].Tiles[coords.x];
+</code></pre>
+
+<p>};
+function moveInDir(modCoords) {</p>
+
+<pre><code>var targetPos = { x: currPos.x + modCoords.x, y: currPos.y + modCoords.y };
+if (targetPos.y &lt; 0) { return; }
+var targetTile = findTile(targetPos);
+if (!targetTile.Passable) { return; }
+currPos = targetPos;
+positionSubscriber.notifySubscribers(targetPos, "move");
+</code></pre>
+
+<p>}
+Mousetrap.bind(&lsquo;up&rsquo;, function() {</p>
+
+<pre><code>moveInDir({ x: 0, y: -1 });
+</code></pre>
+
+<p>})
+Mousetrap.bind(&lsquo;down&rsquo;, function() {</p>
+
+<pre><code>moveInDir({ x: 0, y: 1 });
+</code></pre>
+
+<p>})
+Mousetrap.bind(&lsquo;left&rsquo;, function() {</p>
+
+<pre><code>moveInDir({ x: -1, y: 0 });
+</code></pre>
+
+<p>})
+Mousetrap.bind(&lsquo;right&rsquo;, function() {</p>
+
+<pre><code>moveInDir({ x: 1, y: 0 });
+</code></pre>
+
+<p>})
+var vm = new MapViewModel();
+positionSubscriber.notifySubscribers(PlayerPos, &ldquo;move&rdquo;);
+ko.applyBindings(vm);
+```</p>
+
+<p>This code block wires up the input handling and binds the View Model to the DOM. It&rsquo;s pretty straightforward. The <code>moveInDir</code> function performs validation to make sure the player isn&rsquo;t trying to move into a wall (and if they are, prevent that from actually happening). If the player&rsquo;s desired destination, as per the input coords (you can see the four callers of <code>moveInDir</code> each pass in a different object with the target <code>x</code> and <code>y</code> offsets for the move), is available to be moved to. We call <code>positionSubscriber.notifySubscribers</code> with the new player position. This triggers the subscriptions, in the previous snippet, to update the View Model, triggering changes in the DOM representation.</p>
+
+<h3>Improvements</h3>
+
+<p>There are a number of things that could be improved upon in this demo.</p>
+
+<ul>
+<li>General cleanup/consistency, of course</li>
+<li>Some duplication in the observable logic (<code>playerIsHere</code> vs <code>unoccupied</code>.. probably shouldn&rsquo;t duplicate the logic in these)</li>
+<li>Move the DOM markup into <a href="http://knockoutjs.com/documentation/template-binding.html" title="Knockout - template">Knockout templates</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[An Introduction to machine.javascript part 2]]></title>
